@@ -1,0 +1,157 @@
+.health-page {
+  padding: 32px;
+  max-width: 900px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #1a1f36;
+    margin: 0;
+  }
+
+  .subtitle {
+    color: #6b7280;
+    margin: 8px 0 0;
+    font-size: 0.95rem;
+  }
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #7c3aed;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.health-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.health-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 24px;
+  border: 1px solid #f3f4f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1a1f36;
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    i {
+      color: #7c3aed;
+    }
+  }
+}
+
+.health-dl {
+  margin: 0;
+
+  dt {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9ca3af;
+    margin-bottom: 6px;
+  }
+
+  dd {
+    margin: 0 0 18px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  code {
+    font-size: 0.88rem;
+    background: #f3f4f6;
+    padding: 4px 10px;
+    border-radius: 8px;
+    word-break: break-all;
+  }
+}
+
+.pill {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.pill-dev {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.pill-prod {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.muted {
+  color: #9ca3af;
+  font-size: 0.9rem;
+
+  &.ok {
+    color: #059669;
+  }
+}
+
+.error-block {
+  font-size: 0.9rem;
+  color: #374151;
+
+  .url-line {
+    margin: 8px 0;
+    word-break: break-all;
+  }
+
+  .time-line {
+    font-size: 0.82rem;
+    color: #9ca3af;
+    margin-bottom: 10px;
+  }
+}
+
+.btn-clear {
+  border: none;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: #fee2e2;
+  }
+}

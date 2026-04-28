@@ -1,0 +1,63 @@
+<div class="page health-page">
+  <div class="page-header">
+    <div>
+      <h1>Santé de l’application</h1>
+      <p class="subtitle">Paramètres techniques utiles en démonstration et en maintenance.</p>
+    </div>
+    <a routerLink="/dashboard" class="btn-back"><i class="fas fa-arrow-left"></i> Tableau de bord</a>
+  </div>
+
+  <div class="health-grid">
+    <div class="health-card">
+      <h2><i class="fas fa-link"></i> API backend</h2>
+      <dl class="health-dl">
+        <dt>URL configurée</dt>
+        <dd>
+          <code>{{ env.apiUrl }}</code>
+        </dd>
+      </dl>
+    </div>
+
+    <div class="health-card">
+      <h2><i class="fas fa-code-branch"></i> Version front</h2>
+      <dl class="health-dl">
+        <dt>Application (environment)</dt>
+        <dd>
+          <code>{{ env.appVersion }}</code>
+          @if (env.production) {
+            <span class="pill pill-prod">production</span>
+          } @else {
+            <span class="pill pill-dev">développement</span>
+          }
+        </dd>
+      </dl>
+    </div>
+
+    <div class="health-card">
+      <h2><i class="fas fa-heartbeat"></i> Activité HTTP</h2>
+      <dl class="health-dl">
+        <dt>Dernière réponse OK</dt>
+        <dd>
+          @if (health.lastSuccessAt(); as ok) {
+            {{ ok | date: 'dd/MM/yyyy HH:mm:ss' }}
+          } @else {
+            <span class="muted">— (aucune requête encore enregistrée sur cette session)</span>
+          }
+        </dd>
+        <dt>Dernière erreur réseau / HTTP</dt>
+        <dd>
+          @if (health.lastError(); as err) {
+            <div class="error-block">
+              <p><strong>{{ err.status }}</strong> — {{ err.message | slice: 0 : 220 }}</p>
+              <p class="url-line"><code>{{ err.url | slice: 0 : 120 }}</code></p>
+              <p class="time-line">{{ err.at | date: 'dd/MM/yyyy HH:mm:ss' }}</p>
+              <button type="button" class="btn-clear" (click)="clearError()">Effacer l’affichage</button>
+            </div>
+          } @else {
+            <span class="muted ok">Aucune erreur enregistrée depuis le chargement de la page.</span>
+          }
+        </dd>
+      </dl>
+    </div>
+  </div>
+</div>

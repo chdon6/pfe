@@ -1,0 +1,68 @@
+import type { Patient } from '../models';
+
+/**
+ * Patients fictifs pour tester l’app sans backend (voir `environment.useDemoData`).
+ * Ids élevés pour limiter les collisions avec la base réelle.
+ */
+export const DEMO_PATIENTS: readonly Patient[] = [
+  {
+    id: 99001,
+    demo: true,
+    nom: 'Test',
+    prenom: 'Camille',
+    dateNaissance: '1990-06-15',
+    numDossier: 'TEST-PMA-001',
+    typeDossier: 'couple',
+    typeActePma: 'fiv',
+    femmeNom: 'Test',
+    femmePrenom: 'Jordan',
+    femmeDateNaissance: '1992-11-08',
+    telephone: '0611223344',
+    adresse: '42 rue du Laboratoire — données de démonstration',
+  },
+  {
+    id: 99002,
+    demo: true,
+    nom: 'Benali',
+    prenom: 'Karim',
+    dateNaissance: '1988-03-22',
+    numDossier: 'TEST-PMA-002',
+    typeDossier: 'couple',
+    typeActePma: 'icsi',
+    femmeNom: 'Benali',
+    femmePrenom: 'Nadia',
+    femmeDateNaissance: '1991-07-04',
+    telephone: '0622334455',
+    adresse: '18 avenue des Glycines — données de démonstration',
+  },
+  {
+    id: 99003,
+    demo: true,
+    nom: 'Larbi',
+    prenom: 'Mehdi',
+    dateNaissance: '1995-01-10',
+    numDossier: 'TEST-PMA-003',
+    typeDossier: 'spermogramme',
+    typeActePma: 'spermogramme_bilan',
+    femmeNom: null,
+    femmePrenom: null,
+    femmeDateNaissance: null,
+    telephone: '0633445566',
+    adresse: '7 impasse du Parc — données de démonstration',
+  },
+  {
+    id: 99004,
+    demo: true,
+    nom: 'Mansouri',
+    prenom: 'Youssef',
+    dateNaissance: '1986-12-01',
+    numDossier: 'TEST-PMA-004',
+    typeDossier: 'couple',
+    typeActePma: 'insemination',
+    femmeNom: 'Mansouri',
+    femmePrenom: 'Salma',
+    femmeDateNaissance: '1989-05-18',
+    telephone: '0644556677',
+    adresse: '55 boulevard Ibn Khaldoun — données de démonstration',
+  },
+];

@@ -1,0 +1,135 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Actes PMA</h1>
+      <p>Types d’actes prescrits par patient et suivi de leur réalisation (FIV, ICSI, etc.)</p>
+    </div>
+    @if (canPrescrire) {
+      <button type="button" class="btn btn-primary" (click)="openNew()">
+        <i class="fas fa-plus"></i> Prescrire un acte
+      </button>
+    }
+  </div>
+
+  @if (showForm && canPrescrire) {
+    <div class="card form-card">
+      <h2>Nouvel acte pour un patient</h2>
+      <form (ngSubmit)="save()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="patientId">Patient <span class="required">*</span></label>
+            <select id="patientId" [(ngModel)]="newActe.patientId" name="patientId" required>
+              <option [ngValue]="0" disabled>-- Sélectionner un patient --</option>
+              @for (p of patients; track p.id) {
+                <option [ngValue]="p.id">
+                  {{ p.prenom }} {{ p.nom }}
+                  @if (p.typeDossier !== 'spermogramme' && p.femmeNom) {
+                    &amp; {{ p.femmePrenom }} {{ p.femmeNom }}
+                  }
+                  ({{ p.numDossier }})
+                </option>
+              }
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label for="typeActe">Type d’acte <span class="required">*</span></label>
+            <select id="typeActe" [(ngModel)]="newActe.typeActe" name="typeActe" required (ngModelChange)="onTypeChange()">
+              @for (t of typeOptions; track t.code) {
+                <option [ngValue]="t.code">{{ t.label }}</option>
+              }
+            </select>
+            <p class="field-hint">Le libellé détaillé est généré automatiquement si vous laissez le champ vide.</p>
+          </div>
+          <div class="form-group full-width">
+            <label for="libelle">Libellé (optionnel)</label>
+            <input
+              id="libelle"
+              type="text"
+              [(ngModel)]="newActe.libelle"
+              name="libelle"
+              placeholder="Surcharge du libellé par défaut pour ce type"
+            />
+          </div>
+          <div class="form-group full-width">
+            <label for="observation">Observations</label>
+            <textarea
+              id="observation"
+              [(ngModel)]="newActe.observation"
+              name="observation"
+              rows="3"
+              placeholder="Précisions cliniques, protocole, etc."
+            ></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="showForm = false">Annuler</button>
+          <button type="submit" class="btn btn-primary" [disabled]="newActe.patientId <= 0">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <div class="card">
+    @if (loading) {
+      <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+    } @else if (actes.length === 0) {
+      <div class="empty-state">
+        <i class="fas fa-notes-medical"></i>
+        <p>Aucun acte PMA enregistré</p>
+        @if (canPrescrire) {
+          <p class="empty-hint">Prescrivez un acte (FIV, ICSI…) pour chaque dossier patient.</p>
+        }
+      </div>
+    } @else {
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Type</th>
+            <th>Libellé</th>
+            <th>Statut (réalisation)</th>
+            <th>Observations</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of actes; track a.id) {
+            <tr>
+              <td class="font-medium">{{ getPatientName(a.patientId) }}</td>
+              <td><span class="badge badge-type">{{ libelleType(a.typeActe) }}</span></td>
+              <td>{{ a.libelle }}</td>
+              <td>
+                @if (canMettreAJourStatut) {
+                  <select
+                    class="select-statut"
+                    [value]="a.statutRealisation"
+                    (change)="onStatutChange(a, $event)"
+                    [title]="'Mettre à jour le statut de réalisation'"
+                  >
+                    @for (s of statutOptions; track s.code) {
+                      <option [value]="s.code">{{ s.label }}</option>
+                    }
+                  </select>
+                } @else {
+                  <span class="badge" [class.badge-done]="a.statutRealisation === 'realise'">
+                    {{ libelleStatut(a.statutRealisation) }}
+                  </span>
+                }
+              </td>
+              <td class="cell-muted">{{ a.observation || '—' }}</td>
+              <td>
+                <div class="actions">
+                  @if (canSupprimerActe) {
+                    <button type="button" class="btn-icon btn-danger" (click)="deleteActe(a.id)" title="Supprimer">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

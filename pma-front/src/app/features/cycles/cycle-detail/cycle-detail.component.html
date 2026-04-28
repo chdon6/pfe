@@ -1,0 +1,216 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Calendrier du cycle PMA</h1>
+      @if (cycle) {
+        <p class="header-sub">
+          {{ patientLabel() }} — Phase : {{ cycle.phase }} — Étape {{ stepCourant }}/{{ totalSteps }}
+        </p>
+        @if (dossierSubtitle()) {
+          <p class="header-dossier">{{ dossierSubtitle() }}</p>
+        }
+        <p class="header-resultat">
+          Résultat test de grossesse :
+          <span class="resultat-pill" [class]="resultatBadgeClass()">{{ resultatAffiche() }}</span>
+        </p>
+        @if (cycle.resultatTestGrossesse === 'positif' || cycle.resultatTestGrossesse === 'negatif') {
+          @if (cycle.resultatTestSigneLe) {
+            <p class="header-signature header-signature--ok">
+              <i class="fas fa-signature"></i> {{ signatureResume() }}
+            </p>
+          } @else {
+            <p class="header-signature header-signature--warn">
+              <i class="fas fa-exclamation-triangle"></i> Résultat saisi — <strong>signature biologiste requise</strong>
+            </p>
+          }
+        }
+      }
+    </div>
+    <div class="header-actions-detail">
+      <a routerLink="/cycles" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Cycles &amp; suivi
+      </a>
+    </div>
+  </div>
+
+  @if (cycle) {
+    <div class="card calendar-card">
+      <h2><i class="fas fa-calendar-week"></i> Phases prévues du parcours</h2>
+      <p class="calendar-intro">
+        Dates indicatives calculées à partir de la date de début du cycle (planification type). L’historique réel figure ci-dessous.
+      </p>
+      <div class="progress-track">
+        <div class="progress-bar-lg">
+          <div class="progress-fill-lg" [style.width.%]="progressPercent"></div>
+        </div>
+        <div class="progress-extremes">
+          <span>Consultation initiale</span>
+          <span>Test de grossesse</span>
+        </div>
+      </div>
+      <div class="phase-grid">
+        @for (ph of calendarPhases; track ph.index) {
+          <div class="phase-cell" [class]="'statut-' + ph.statut">
+            <span class="phase-idx">{{ ph.index }}</span>
+            <span class="phase-name">{{ ph.label }}</span>
+            <span class="phase-date">{{ ph.datePrevue | date: 'yyyy-MM-dd' }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card daily-calendar-card">
+      <h2><i class="fas fa-calendar-day"></i> Suivi jour par jour</h2>
+      <p class="calendar-intro">
+        Chaque jour du parcours type est rattaché à une phase PMA (planification indicative à partir de la date de début). Le
+        <strong>jour courant</strong> est surligné en violet.
+      </p>
+      <div class="daily-weeks">
+        @for (week of dailyWeeks(); track $index) {
+          <div class="week-row">
+            @for (d of week; track d.jourIndex) {
+              <div [ngClass]="['day-cell', 'statut-' + d.statut, { 'is-today': isCalendarToday(d) }]">
+                <span class="day-idx">J{{ d.jourIndex + 1 }}</span>
+                <span class="day-date">{{ d.date | date: 'dd/MM' }}</span>
+                <span class="day-phase" [title]="d.phaseLabel">{{ d.phaseLabel }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card resultat-card">
+      <h2><i class="fas fa-notes-medical"></i> Résultat — test de grossesse</h2>
+      <p class="calendar-intro">
+        Après la phase « Test de grossesse », indiquez si le β-hCG est positif ou négatif. En cas de résultat positif ou négatif,
+        la <strong>biologiste doit signer électroniquement</strong> le résultat (traçabilité réglementaire).
+      </p>
+      <div class="resultat-form">
+        <label class="sr-only" for="resultat-select">Résultat</label>
+        <select id="resultat-select" class="select-resultat" [(ngModel)]="resultatDraft" name="resultatDraft">
+          <option value="en_attente">En attente</option>
+          <option value="positif">Positif</option>
+          <option value="negatif">Négatif</option>
+        </select>
+        <button type="button" class="btn btn-primary" (click)="saveResultat()" [disabled]="savingResult">
+          @if (savingResult) {
+            <i class="fas fa-spinner fa-spin"></i>
+          } @else {
+            <i class="fas fa-save"></i>
+          }
+          Enregistrer le résultat
+        </button>
+      </div>
+      @if (saveResultMsg) {
+        <p class="save-result-msg">{{ saveResultMsg }}</p>
+      }
+
+      @if (attenteSignatureBiologiste()) {
+        <div class="signature-bio-box">
+          <h3 class="signature-bio-title"><i class="fas fa-user-md"></i> Signature biologiste</h3>
+          <p class="signature-bio-help">
+            Je certifie avoir vérifié la cohérence du résultat « {{ resultatAffiche().toLowerCase() }} » pour ce dossier.
+            Le système enregistrera votre nom : <strong>{{ libelleSignataireDefaut() }}</strong>.
+          </p>
+          <label class="signature-check">
+            <input type="checkbox" [(ngModel)]="signerCertifie" name="signerCertifie" />
+            <span>Je valide et signe électroniquement ce résultat de test.</span>
+          </label>
+          <button type="button" class="btn btn-accent" (click)="signerResultat()" [disabled]="signingResult">
+            @if (signingResult) {
+              <i class="fas fa-spinner fa-spin"></i>
+            } @else {
+              <i class="fas fa-pen-fancy"></i>
+            }
+            Signer le résultat
+          </button>
+        </div>
+      } @else if ((cycle.resultatTestGrossesse === 'positif' || cycle.resultatTestGrossesse === 'negatif') && cycle.resultatTestSigneLe) {
+        <p class="signature-ok-banner"><i class="fas fa-check-circle"></i> {{ signatureResume() }}</p>
+      }
+
+      @if (signResultMsg) {
+        <p class="sign-result-msg" [class.error]="signResultMsg.includes('refusée') || signResultMsg.includes('Cochez')">{{
+          signResultMsg
+        }}</p>
+      }
+    </div>
+
+    <div class="card entity-history-card-cycle">
+      <h2><i class="fas fa-history"></i> Historique des modifications (cycle)</h2>
+      <p class="calendar-intro">
+        Mêmes principes que sur la fiche patient : stockage local pour la démo ; une API pourra centraliser l’audit métier.
+      </p>
+      @if (cycleModificationHistory().length === 0) {
+        <p class="empty-text">Aucune entrée — les enregistrements du résultat de grossesse apparaîtront ici.</p>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Action</th>
+              <th>Détail</th>
+              <th>Utilisateur</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (h of cycleModificationHistory(); track h.id) {
+              <tr>
+                <td>{{ h.at | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ h.action }}</td>
+                <td>{{ h.summary }}</td>
+                <td>{{ h.actor || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <div class="detail-grid">
+      <div class="card info-card">
+        <h2>Informations du cycle</h2>
+        <div class="info-row"><span class="label">Phase</span><span>{{ cycle.phase }}</span></div>
+        <div class="info-row"><span class="label">Étape courante</span><span>{{ cycle.etapeCourante }}</span></div>
+        <div class="info-row"><span class="label">Statut</span><span class="badge">{{ cycle.statutCycle }}</span></div>
+        <div class="info-row"><span class="label">Date début</span><span>{{ cycle.dateDebut | date:'dd/MM/yyyy' }}</span></div>
+        @if (cycle.dateFin) {
+          <div class="info-row"><span class="label">Date fin</span><span>{{ cycle.dateFin | date:'dd/MM/yyyy' }}</span></div>
+        }
+        <div class="info-row"><span class="label">Dernière MAJ</span><span>{{ cycle.derniereMiseAJour | date:'dd/MM/yyyy HH:mm' }}</span></div>
+        @if (cycle.resultatTestGrossesse === 'positif' || cycle.resultatTestGrossesse === 'negatif') {
+          <div class="info-row">
+            <span class="label">Signature biologiste (β-hCG)</span>
+            <span>{{ cycle.resultatTestSigneLe ? signatureResume() : 'Non signé' }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="card">
+        <h2>Historique des étapes</h2>
+        @if (historique.length === 0) {
+          <p class="empty-text">Aucun historique disponible</p>
+        } @else {
+          <div class="timeline">
+            @for (h of historique; track h.id) {
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <div class="timeline-header">
+                    <strong>{{ h.etape }}</strong>
+                    <span class="badge">{{ h.statut }}</span>
+                  </div>
+                  <p class="timeline-date">{{ h.dateEtape | date:'dd/MM/yyyy HH:mm' }}</p>
+                  @if (h.observation) {
+                    <p class="timeline-obs">{{ h.observation }}</p>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

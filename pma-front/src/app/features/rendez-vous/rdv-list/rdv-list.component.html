@@ -1,0 +1,79 @@
+<div class="page rz-page">
+  <div class="page-header rz-page-header">
+    <div>
+      <h1>Planification des Rendez-vous</h1>
+      <p>Gérer les rendez-vous des patients</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNew()">
+      <i class="fas fa-plus"></i> Nouveau RDV
+    </button>
+  </div>
+
+  @if (showForm) {
+    <div class="card form-card">
+      <h2>Nouveau rendez-vous</h2>
+      <form (ngSubmit)="saveRdv()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Patient</label>
+            <select [(ngModel)]="editRdv.patientId" name="patientId" required>
+              <option [ngValue]="0" disabled>-- Sélectionner un patient --</option>
+              @for (p of patients; track p.id) {
+                <option [ngValue]="p.id">{{ p.prenom }} {{ p.nom }} ({{ p.numDossier }})</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date et heure</label>
+            <input type="datetime-local" [(ngModel)]="editRdv.dateHeure" name="dateHeure" required />
+          </div>
+          <div class="form-group full-width">
+            <label>Motif</label>
+            <textarea [(ngModel)]="editRdv.motif" name="motif" rows="3" placeholder="Motif du rendez-vous"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="showForm = false">Annuler</button>
+          <button type="submit" class="btn btn-primary">Planifier</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+  } @else if (rendezVous.length === 0) {
+    <div class="empty-state">
+      <i class="fas fa-calendar-alt"></i>
+      <p>Aucun rendez-vous planifié</p>
+    </div>
+  } @else {
+    <div class="rz-rdv-stack">
+      @for (grp of groupedRdv; track grp.key) {
+        <div>
+          <div class="rz-rdv-day-head">
+            <i class="fas fa-calendar"></i>
+            <h3>{{ grp.label }}</h3>
+          </div>
+          <div class="rz-rdv-grid">
+            @for (rdv of grp.items; track rdv.id) {
+              <div class="rz-rdv-card">
+                <span class="rz-rdv-time">{{ rdv.dateHeure | date:'HH:mm' }}</span>
+                <div class="rz-rdv-body">
+                  <span class="rz-rdv-name">{{ getPatientName(rdv.patientId) }}</span>
+                  <p class="rz-rdv-motif">{{ rdv.motif || '—' }}</p>
+                </div>
+                <span [class]="'rz-status-badge rz-status-badge--' + statutClass(rdv.statut)">{{ rdv.statut }}</span>
+                <div class="rz-row-aside">
+                  <button type="button" class="btn-icon btn-danger" (click)="deleteRdv(rdv.id)" title="Supprimer">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

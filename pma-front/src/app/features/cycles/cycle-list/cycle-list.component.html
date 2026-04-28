@@ -1,0 +1,265 @@
+<div class="page cycle-pma-page">
+  <div class="page-header cycle-pma-header">
+    <div>
+      <h1>Cycles &amp; suivi PMA</h1>
+      @if (isBiologiste()) {
+        <p class="subtitle">
+          Dossiers médicaux regroupés par patient : ouvrez un dossier pour voir les cycles, l’aperçu des phases par jour et le
+          résultat du test de grossesse ; le calendrier complet est dans le détail du cycle. Les données se rechargent
+          automatiquement toutes les 2 minutes ; les alertes (cloche) suivent les jalons du parcours type et les résultats de
+          test en attente.
+        </p>
+      } @else {
+        <p class="subtitle">
+          Liste des parcours, progression par patient et alertes — accès détail / calendrier par carte
+        </p>
+      }
+    </div>
+    <div class="header-right">
+      <div class="notif-wrap">
+        <button
+          type="button"
+          class="btn-bell"
+          (click)="togglePanel()"
+          [class.has-unread]="unreadCount() > 0"
+          aria-label="Notifications cycles">
+          <i class="fas fa-bell"></i>
+          @if (unreadCount() > 0) {
+            <span class="bell-badge">{{ unreadCount() }}</span>
+          }
+        </button>
+        @if (panelOpen()) {
+          <div class="notif-panel" (click)="$event.stopPropagation()">
+            <div class="notif-panel-head">
+              <strong>Alertes &amp; rappels</strong>
+              <button type="button" class="link-btn" (click)="markAllRead()">Tout lu</button>
+            </div>
+            @if (notifs().length === 0) {
+              <p class="notif-empty">Aucune notification pour l’instant.</p>
+            } @else {
+              <ul class="notif-list">
+                @for (n of notifs(); track n.id) {
+                  <li [class.unread]="!n.read" [attr.data-sev]="n.severity" (click)="markRead(n.id)">
+                    <div class="notif-title-row">
+                      <span class="notif-title">{{ n.title }}</span>
+                      <button type="button" class="icon-dismiss" (click)="dismissNotif(n.id, $event)" aria-label="Fermer">×</button>
+                    </div>
+                    <span class="notif-meta">{{ n.patientLabel }}</span>
+                    <p class="notif-body">{{ n.body }}</p>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+      <button type="button" class="btn btn-primary" (click)="openNew()">
+        <i class="fas fa-plus"></i> Nouveau cycle
+      </button>
+    </div>
+  </div>
+
+  @if (showForm) {
+    <div class="card form-card">
+      <h2>Nouveau cycle PMA</h2>
+      <p class="form-intro">
+        Un cycle ne peut être ouvert que pour un patient qui a au moins un rendez-vous planifié (non annulé).
+        @if (patients.length > 0 && patientsEligiblesAuCycle().length === 0) {
+          @if (isBiologiste()) {
+            <span class="field-hint warn">Demandez à la secrétaire de planifier un rendez-vous pour ce dossier si besoin.</span>
+          } @else {
+            <a routerLink="/rendez-vous" class="link-inline">Planifier un rendez-vous</a>
+          }
+        }
+      </p>
+      <div class="cycle-logic-info">
+        <strong><i class="fas fa-route"></i> Logique métier</strong>
+        <p>
+          Les actes <strong>FIV, ICSI, insémination, ponction</strong>, etc. correspondent à un <strong>parcours AMP</strong> avec
+          cycle de suivi. La <strong>conservation de sperme</strong>, le <strong>spermogramme</strong> ou seuls des actes
+          laboratoire / prélèvements relèvent du <strong>stockage et des résultats biologiques</strong>, sans cycle de stimulation
+          ovarienne en général.
+        </p>
+      </div>
+      @if (cycleFormError) {
+        <div class="alert-error"><i class="fas fa-exclamation-circle"></i> {{ cycleFormError }}</div>
+      }
+      <form (ngSubmit)="saveCycle()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Patient</label>
+            <select [(ngModel)]="newCycle.patientId" name="patientId" required>
+              <option [ngValue]="0" disabled>-- Sélectionner un patient --</option>
+              @for (p of patientsEligiblesAuCycle(); track p.id) {
+                <option [ngValue]="p.id">{{ libelleOptionPatient(p) }}</option>
+              }
+            </select>
+            @if (patients.length > 0 && patientsEligiblesAuCycle().length === 0) {
+              <p class="field-hint warn">Aucun patient éligible : créez d’abord un rendez-vous pour au moins un patient.</p>
+            }
+            @if (newCycle.patientId) {
+              <p class="field-hint parcours-dossier-hint">{{ parcoursDossierPatient(newCycle.patientId) }}</p>
+              @if (patientActeLaboSeul(newCycle.patientId)) {
+                <p class="field-hint warn">
+                  <i class="fas fa-snowflake"></i> Acte de type laboratoire / conservation : un cycle PMA n’est en général pas requis.
+                  Vous pouvez suivre les actes et la cryoconservation sans ouvrir de cycle.
+                </p>
+              }
+              @if (patientActeImpliqueCycle(newCycle.patientId)) {
+                <p class="field-hint ok-hint">
+                  <i class="fas fa-check-circle"></i> Parcours AMP : l’ouverture d’un cycle de suivi est cohérente avec l’acte prévu du dossier.
+                </p>
+              }
+            }
+          </div>
+          <div class="form-group">
+            <label>Phase</label>
+            <input type="text" [(ngModel)]="newCycle.phase" name="phase" placeholder="Ex: Stimulation, Ponction..." />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="showForm = false">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer le cycle</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Chargement des cycles…</div>
+  } @else if (cycles.length === 0) {
+    <div class="empty-state">
+      <i class="fas fa-flask"></i>
+      <p>Aucun cycle enregistré — créez un parcours ou importez des données.</p>
+    </div>
+  } @else if (isBiologiste()) {
+    <div class="dossiers-list">
+      @for (d of dossiersGroupes(); track d.patientId) {
+        <article class="dossier-medical-card">
+          <button
+            type="button"
+            class="dossier-head"
+            [class.is-open]="expandedDossierId() === d.patientId"
+            (click)="toggleDossier(d.patientId)"
+            [attr.aria-expanded]="expandedDossierId() === d.patientId">
+            <span class="dossier-icon"><i class="fas fa-folder-medical"></i></span>
+            <span class="dossier-text">
+              <span class="dossier-title">{{ d.label }}</span>
+              <span class="dossier-meta"
+                >Dossier n° <strong>{{ d.numDossier }}</strong> · {{ d.cycles.length }} cycle(s) PMA</span
+              >
+            </span>
+            <i class="fas fa-chevron-down dossier-chevron"></i>
+          </button>
+
+          @if (expandedDossierId() === d.patientId) {
+            <div class="dossier-body">
+              @for (c of d.cycles; track c.id) {
+                <div
+                  class="cycle-in-dossier"
+                  role="button"
+                  tabindex="0"
+                  (click)="goToCycle(c.id)"
+                  (keydown.enter)="goToCycle(c.id)">
+                  <div class="cycle-in-dossier-top">
+                    <div>
+                      <span class="cycle-in-dossier-label">Cycle du {{ dateIso(c) }}</span>
+                      <span class="badge-acte in-dossier">{{ badgeActe(c) }}</span>
+                      <span class="badge-statut" [class]="phaseService.badgeStatutClass(c.statutCycle)">
+                        {{ phaseService.statutLabel(c.statutCycle) }}
+                      </span>
+                      <span class="resultat-badge" [class]="resultatBadgeClass(c)">{{ resultatBadgeLabel(c) }}</span>
+                      @if (signatureBiologisteManquante(c)) {
+                        <span class="badge-signature-pending" title="Signature biologiste requise sur le résultat">À signer</span>
+                      }
+                    </div>
+                    <span class="step-fraction"
+                      >Étape <strong>{{ stepIndex(c) }}/{{ totalSteps }}</strong></span
+                    >
+                  </div>
+                  <p class="phase-line compact">Phase actuelle : <strong>{{ c.phase || '—' }}</strong></p>
+                  <div class="mini-week">
+                    <span class="mini-week-title">7 premiers jours (phase par jour)</span>
+                    <div class="mini-week-grid">
+                      @for (j of previewSemaine(c); track j.jourIndex) {
+                        <div class="mini-day" [class]="'st-' + j.statut" [title]="j.phaseLabel">
+                          <span class="m-d">J{{ j.jourIndex + 1 }}</span>
+                          <span class="m-date">{{ j.date | date: 'dd/MM' }}</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                  <p class="open-detail-hint"><i class="fas fa-calendar-alt"></i> Ouvrir le calendrier complet et le test de grossesse</p>
+                </div>
+              }
+            </div>
+          }
+        </article>
+      }
+    </div>
+  } @else {
+    <div class="cards-list">
+      @for (c of cycles; track c.id) {
+        <article
+          class="cycle-card"
+          role="button"
+          tabindex="0"
+          (click)="goToCycle(c.id)"
+          (keydown.enter)="goToCycle(c.id)">
+          <div class="card-top">
+            <div class="identity">
+              <div class="avatar"><i class="fas fa-flask"></i></div>
+              <div class="identity-text">
+                <div class="name-row">
+                  <h2 class="patient-name">{{ getPatientName(c.patientId) }}</h2>
+                  <span
+                    class="badge-acte"
+                    [class.badge-acte-alt]="
+                      badgeActe(c) === 'Stimulation ovarienne' || badgeActe(c) === 'Monitoring'
+                    ">
+                    {{ badgeActe(c) }}
+                  </span>
+                  <span class="badge-statut" [class]="phaseService.badgeStatutClass(c.statutCycle)">
+                    {{ phaseService.statutLabel(c.statutCycle) }}
+                  </span>
+                </div>
+                <p class="phase-line">
+                  Phase : <strong>{{ c.phase || '—' }}</strong>
+                  <span class="dot">•</span>
+                  Début : <span class="mono-date">{{ dateIso(c) }}</span>
+                </p>
+              </div>
+            </div>
+            <div class="card-actions">
+              <span class="step-fraction"
+                >Étape <strong>{{ stepIndex(c) }}/{{ totalSteps }}</strong></span
+              >
+              <i class="fas fa-chevron-right step-chevron"></i>
+              <button
+                type="button"
+                class="btn-icon-card"
+                title="Supprimer le cycle"
+                (click)="deleteCycle(c.id, $event)">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="track-wrap">
+            <div class="track-bar">
+              <div class="track-fill" [style.width.%]="progressPct(c)"></div>
+            </div>
+            <div class="track-labels">
+              <span>Consultation initiale</span>
+              <span>Test de grossesse</span>
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>
+
+@if (panelOpen()) {
+  <div class="backdrop" (click)="closePanel()" aria-hidden="true"></div>
+}

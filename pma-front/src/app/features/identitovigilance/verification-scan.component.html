@@ -1,0 +1,182 @@
+<div class="page verification-page">
+  <div class="page-header verification-header">
+    <div>
+      <h1>Vérification d'identité</h1>
+      <p class="subtitle">Scan de concordance — Étiquette → élément biologique et patient (identitovigilance électronique)</p>
+    </div>
+  </div>
+
+  <div class="context-bar">
+    <div class="ctx-field">
+      <label for="ctx-etape">Étape critique avant manipulation</label>
+      <select
+        id="ctx-etape"
+        class="ctx-select"
+        [value]="etapeCritique()"
+        (change)="etapeCritique.set($any($event.target).value)"
+      >
+        @for (e of etapesOptions; track e) {
+          <option [value]="e">{{ e }}</option>
+        }
+      </select>
+    </div>
+    <div class="ctx-field">
+      <label for="ctx-poste">Poste / station de travail</label>
+      <input
+        id="ctx-poste"
+        type="text"
+        class="ctx-input"
+        name="posteTravail"
+        [(ngModel)]="posteModel"
+        (blur)="syncPoste()"
+        placeholder="Ex. LABO-WS2, PONCT-WS1…"
+        autocomplete="off"
+      />
+    </div>
+  </div>
+
+  <div class="verification-main">
+  <div class="stepper-card">
+    <div class="stepper">
+      @for (step of steps(); track step.number) {
+        <div class="step" [class.done]="step.done" [class.active]="step.active">
+          <div class="step-circle">
+            @if (step.done) {
+              <i class="fas fa-check"></i>
+            } @else {
+              {{ step.number }}
+            }
+          </div>
+          <span class="step-label">{{ step.label }}</span>
+        </div>
+        @if (step.number < 3) {
+          <div class="step-connector" [class.done]="step.done"></div>
+        }
+      }
+    </div>
+  </div>
+
+  @if (stepError()) {
+    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> {{ stepError() }}</div>
+  }
+
+  <div class="scanner-card" [class.scanner-card--wide]="currentStep() === 3">
+    @switch (currentStep()) {
+      @case (1) {
+        <div class="scanner-content">
+          <div class="scan-icon">
+            <i class="fas fa-id-card-alt"></i>
+          </div>
+          <h2>Scanner le bracelet patient</h2>
+          <p>Saisissez le <strong>numéro de dossier</strong> lu sur le bracelet (ex. C-001).</p>
+          <div class="scan-input-group">
+            <input
+              type="text"
+              [value]="scanInput()"
+              (input)="scanInput.set($any($event.target).value)"
+              (keydown.enter)="submitStep1()"
+              placeholder="N° dossier..."
+              [disabled]="loading()"
+            />
+            <button type="button" class="btn-scan" [disabled]="loading()" (click)="submitStep1()">
+              @if (loading()) { <i class="fas fa-spinner fa-spin"></i> } @else { Valider }
+            </button>
+          </div>
+        </div>
+      }
+      @case (2) {
+        <div class="scanner-content">
+          <div class="scan-icon contenant">
+            <i class="fas fa-qrcode"></i>
+          </div>
+          <h2>Scanner l'étiquette du contenant</h2>
+          <p>Le code identifie un <strong>élément biologique</strong> ou une <strong>paillette</strong> lié(e) à un patient.</p>
+          <div class="scan-input-group">
+            <input
+              type="text"
+              [value]="scanInput()"
+              (input)="scanInput.set($any($event.target).value)"
+              (keydown.enter)="submitStep2()"
+              placeholder="Code-barres..."
+              [disabled]="loading()"
+            />
+            <button type="button" class="btn-scan" [disabled]="loading()" (click)="submitStep2()">
+              @if (loading()) { <i class="fas fa-spinner fa-spin"></i> } @else { Scanner }
+            </button>
+          </div>
+        </div>
+      }
+      @case (3) {
+        <div class="scanner-content wide">
+          <div class="result-icon" [class.success]="concordance()" [class.error]="!concordance()">
+            @if (concordance()) {
+              <i class="fas fa-check-circle"></i>
+            } @else {
+              <i class="fas fa-times-circle"></i>
+            }
+          </div>
+          <h2>{{ concordance() ? 'Concordance vérifiée' : 'DISCORDANCE détectée' }}</h2>
+          <p>
+            {{
+              concordance()
+                ? 'Le patient du bracelet et celui identifié par l\'étiquette sont identiques.'
+                : 'Le patient du dossier ne correspond pas au patient lié à cette étiquette.'
+            }}
+          </p>
+
+          @if (!concordance()) {
+            <div class="alert-block-acte" role="alert">
+              <strong><i class="fas fa-hand-paper"></i> Acte interrompu — ne pas poursuivre</strong>
+              <p>
+                En cas de discordance, aucune manipulation critique ne doit continuer. L’événement est enregistré dans le journal
+                d’audit avec date, heure, opérateur et poste (exigences identitovigilance).
+              </p>
+            </div>
+          } @else {
+            <div class="alert-ok-audit">
+              <i class="fas fa-clipboard-check"></i>
+              <span>Contrôle journalisé — vous pouvez poursuivre l’acte prévu.</span>
+            </div>
+          }
+
+          <div class="compare-grid">
+            <div class="compare-card">
+              <h3><i class="fas fa-user"></i> Bracelet (dossier)</h3>
+              @if (patientBracelet(); as pb) {
+                <p><strong>{{ pb.prenom }} {{ pb.nom }}</strong></p>
+                <p class="muted">N° dossier : {{ pb.numDossier }}</p>
+              }
+            </div>
+            <div class="compare-card">
+              <h3><i class="fas fa-vial"></i> Étiquette → prélèvement</h3>
+              @if (lookup(); as lu) {
+                @if (lu.elementBiologique) {
+                  <p>
+                    <span class="badge-type">{{ lu.elementBiologique.typeElement }}</span>
+                  </p>
+                  @if (lu.elementBiologique.codeBarre) {
+                    <p class="muted mono">Code : {{ lu.elementBiologique.codeBarre }}</p>
+                  }
+                  @if (lu.elementBiologique.numeroTube) {
+                    <p class="muted">Tube : {{ lu.elementBiologique.numeroTube }}</p>
+                  }
+                }
+                @if (lu.paillette) {
+                  <p><span class="badge-type">{{ lu.paillette.typeContenu }}</span> (paillette cryo)</p>
+                  <p class="muted mono">{{ lu.paillette.codeBarre }}</p>
+                }
+                @if (lu.patient) {
+                  <p class="pt"><strong>{{ lu.patient.prenom }} {{ lu.patient.nom }}</strong></p>
+                  <p class="muted">N° dossier : {{ lu.patient.numDossier }}</p>
+                }
+              }
+            </div>
+          </div>
+
+          <button type="button" class="btn-scan" (click)="reset()">Nouveau scan</button>
+        </div>
+      }
+    }
+  </div>
+  </div>
+</div>

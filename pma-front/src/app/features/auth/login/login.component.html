@@ -1,0 +1,58 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-header">
+      <i class="fas fa-heartbeat"></i>
+      <h1>PMA</h1>
+      <p>Plateforme de Médecine Assistée</p>
+    </div>
+
+    <form (ngSubmit)="onLogin()" class="login-form">
+      @if (error) {
+        <div class="alert-error">
+          <i class="fas fa-exclamation-circle"></i>
+          {{ error }}
+        </div>
+      }
+
+      <div class="form-group">
+        <label for="identifiant">Identifiant</label>
+        <div class="input-wrapper">
+          <i class="fas fa-user"></i>
+          <input
+            id="identifiant"
+            type="text"
+            [(ngModel)]="identifiant"
+            name="identifiant"
+            placeholder="Votre identifiant"
+            autocomplete="username"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <div class="input-wrapper">
+          <i class="fas fa-lock"></i>
+          <input
+            id="password"
+            type="password"
+            [(ngModel)]="password"
+            name="password"
+            placeholder="Votre mot de passe"
+            autocomplete="current-password"
+          />
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login" [disabled]="loading">
+        @if (loading) {
+          <i class="fas fa-spinner fa-spin"></i>
+          Connexion...
+        } @else {
+          <i class="fas fa-sign-in-alt"></i>
+          Se connecter
+        }
+      </button>
+    </form>
+  </div>
+</div>

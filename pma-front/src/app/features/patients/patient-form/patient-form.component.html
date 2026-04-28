@@ -1,0 +1,325 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ isEdit ? 'Modifier le patient' : 'Nouveau patient' }}</h1>
+      <p>{{ isEdit ? 'Mettre à jour les informations du patient' : 'Ouvrir un dossier couple ou un dossier spermogramme (homme seul)' }}</p>
+    </div>
+    <a routerLink="/patients" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Retour
+    </a>
+  </div>
+
+  <div class="card form-card">
+    @if (error) {
+      <div class="alert-error">
+        <i class="fas fa-exclamation-circle"></i> {{ error }}
+      </div>
+    }
+
+    <form (ngSubmit)="onSubmit()" novalidate>
+
+      <!-- Type de dossier (secrétaire : homme seul vs couple) -->
+      <div class="form-section">
+        <div class="section-header">
+          <i class="fas fa-folder-open"></i>
+          <div>
+            <h3>Type de dossier <span class="required">*</span></h3>
+            <p>Homme seul : dossier spermogramme. Couple : dossier couple. La photo est obligatoire dans les deux cas.</p>
+          </div>
+        </div>
+        <div class="dossier-type-options">
+          <label class="radio-card" [class.selected]="form.typeDossier === 'spermogramme'">
+            <input
+              type="radio"
+              name="typeDossier"
+              value="spermogramme"
+              [(ngModel)]="form.typeDossier"
+              (ngModelChange)="onTypeDossierChange()"
+              class="radio-input"
+            />
+            <div class="radio-card-text">
+              <span class="radio-title">Homme seul</span>
+              <span class="radio-desc">Dossier spermogramme — photo du patient obligatoire</span>
+            </div>
+          </label>
+          <label class="radio-card" [class.selected]="form.typeDossier === 'couple'">
+            <input
+              type="radio"
+              name="typeDossier"
+              value="couple"
+              [(ngModel)]="form.typeDossier"
+              (ngModelChange)="onTypeDossierChange()"
+              class="radio-input"
+            />
+            <div class="radio-card-text">
+              <span class="radio-title">Couple</span>
+              <span class="radio-desc">Dossier couple — photo du couple obligatoire (identitovigilance)</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 1 : Photo -->
+      <div class="form-section">
+        <div class="section-header">
+          <i class="fas fa-camera"></i>
+          <div>
+            @if (isDossierCouple) {
+              <h3>Photo du couple <span class="required">*</span></h3>
+              <p>Photo d'identité du couple obligatoire pour l'identitovigilance</p>
+            } @else {
+              <h3>Photo du patient <span class="required">*</span></h3>
+              <p>Photo d'identité du patient obligatoire pour l'identitovigilance</p>
+            }
+          </div>
+        </div>
+
+        <div class="photo-upload-area">
+          @if (photoPreview) {
+            <div class="photo-preview">
+              <img [src]="photoPreview" [alt]="isDossierCouple ? 'Photo du couple' : 'Photo du patient'" />
+              <button type="button" class="btn-remove-photo" (click)="removePhoto()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          } @else if (existingPhoto) {
+            <div class="photo-preview">
+              <img [src]="existingPhoto" [alt]="isDossierCouple ? 'Photo du couple' : 'Photo du patient'" />
+              <span class="photo-existing-badge">Photo actuelle</span>
+            </div>
+          } @else {
+            <label class="photo-dropzone" for="photoInput">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span class="dropzone-text">{{ isDossierCouple ? 'Cliquez pour ajouter la photo du couple' : 'Cliquez pour ajouter la photo du patient' }}</span>
+              <span class="dropzone-hint">JPG, PNG - Max 5 Mo</span>
+            </label>
+          }
+          <input
+            id="photoInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            (change)="onPhotoSelected($event)"
+            hidden
+          />
+          @if (photoPreview || existingPhoto) {
+            <label for="photoInput" class="btn btn-secondary btn-sm">
+              <i class="fas fa-redo"></i> Changer la photo
+            </label>
+          }
+        </div>
+      </div>
+
+      <!-- Section 2 : Identité (homme seul ou couple) -->
+      @if (isDossierCouple) {
+        <div class="form-section">
+          <div class="section-header">
+            <i class="fas fa-mars"></i>
+            <div>
+              <h3>L'homme <span class="required">*</span></h3>
+              <p>Identité du partenaire masculin</p>
+            </div>
+          </div>
+          <div class="form-grid form-grid-balanced">
+            <div class="form-group">
+              <label for="nom">Nom <span class="required">*</span></label>
+              <input id="nom" type="text" [(ngModel)]="form.nom" name="nom" required placeholder="Nom" />
+            </div>
+            <div class="form-group">
+              <label for="prenom">Prénom <span class="required">*</span></label>
+              <input id="prenom" type="text" [(ngModel)]="form.prenom" name="prenom" required placeholder="Prénom" />
+            </div>
+            <div class="form-group full-width">
+              <label for="dateNaissance">Date de naissance <span class="required">*</span></label>
+              <input id="dateNaissance" type="date" [(ngModel)]="form.dateNaissance" name="dateNaissance" required />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <i class="fas fa-venus"></i>
+            <div>
+              <h3>La femme <span class="required">*</span></h3>
+              <p>Identité du partenaire féminin — obligatoire pour enregistrer un dossier couple (sinon erreur à l’enregistrement).</p>
+            </div>
+          </div>
+          <div class="form-grid form-grid-balanced">
+            <div class="form-group">
+              <label for="femmeNom">Nom <span class="required">*</span></label>
+              <input id="femmeNom" type="text" [(ngModel)]="form.femmeNom" name="femmeNom" required placeholder="Nom" />
+            </div>
+            <div class="form-group">
+              <label for="femmePrenom">Prénom <span class="required">*</span></label>
+              <input id="femmePrenom" type="text" [(ngModel)]="form.femmePrenom" name="femmePrenom" required placeholder="Prénom" />
+            </div>
+            <div class="form-group full-width">
+              <label for="femmeDateNaissance">Date de naissance <span class="required">*</span></label>
+              <input id="femmeDateNaissance" type="date" [(ngModel)]="form.femmeDateNaissance" name="femmeDateNaissance" required />
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="form-section">
+          <div class="section-header">
+            <i class="fas fa-user"></i>
+            <div>
+              <h3>Patient (homme) <span class="required">*</span></h3>
+              <p>Dossier spermogramme — identité du patient</p>
+            </div>
+          </div>
+          <div class="form-grid form-grid-balanced">
+            <div class="form-group">
+              <label for="nom">Nom <span class="required">*</span></label>
+              <input id="nom" type="text" [(ngModel)]="form.nom" name="nom" required placeholder="Nom" />
+            </div>
+            <div class="form-group">
+              <label for="prenom">Prénom <span class="required">*</span></label>
+              <input id="prenom" type="text" [(ngModel)]="form.prenom" name="prenom" required placeholder="Prénom" />
+            </div>
+            <div class="form-group full-width">
+              <label for="dateNaissance">Date de naissance <span class="required">*</span></label>
+              <input id="dateNaissance" type="date" [(ngModel)]="form.dateNaissance" name="dateNaissance" required />
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="form-section">
+        <div class="section-header">
+          <i class="fas fa-notes-medical"></i>
+          <div>
+            <h3>Acte PMA prévu <span class="required">*</span></h3>
+            @if (isDossierCouple) {
+              <p>
+                Parcours du couple (FIV, ICSI, ponction, transfert, dons, etc.) et actes côté homme (spermogramme,
+                préparation ou cryoconservation du sperme, TESA, TESE, MESA, PESA).
+              </p>
+            } @else {
+              <p>
+                Actes andrologiques et prélèvements : spermogramme / bilan, traitement en laboratoire, cryoconservation,
+                aspirations ou biopsies testiculaires (TESA, TESE) et ponctions épididymaires (PESA, MESA).
+              </p>
+            }
+          </div>
+        </div>
+        <div class="form-grid form-grid-balanced">
+          <div class="form-group full-width">
+            <label for="typeActePma">Type d’acte <span class="required">*</span></label>
+            <select
+              id="typeActePma"
+              [(ngModel)]="form.typeActePma"
+              name="typeActePma"
+              required
+            >
+              <option [ngValue]="''" disabled>— Choisir dans la liste —</option>
+              @for (opt of actePmaOptions; track opt.code) {
+                <option [ngValue]="opt.code">{{ opt.label }}</option>
+              }
+            </select>
+            @if (form.typeActePma) {
+              <p class="field-hint parcours-acte-hint">{{ parcoursActeHint }}</p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="section-header">
+          <i class="fas fa-folder"></i>
+          <div>
+            <h3>Dossier administratif</h3>
+            <p>Numéro de dossier et coordonnées</p>
+          </div>
+        </div>
+        <div class="form-grid form-grid-balanced">
+          <div class="form-group">
+            <label for="numDossier">N° Dossier <span class="required">*</span></label>
+            <input id="numDossier" type="text" [(ngModel)]="form.numDossier" name="numDossier" required placeholder="Numéro de dossier" />
+          </div>
+          <div class="form-group">
+            <label for="telephone">Téléphone</label>
+            <input
+              id="telephone"
+              type="tel"
+              [(ngModel)]="form.telephone"
+              name="telephone"
+              placeholder="Ex. 0612345678"
+              autocomplete="tel"
+            />
+          </div>
+          <div class="form-group full-width">
+            <label for="adresse">Adresse</label>
+            <input id="adresse" type="text" [(ngModel)]="form.adresse" name="adresse" placeholder="Adresse (domicile du couple ou du patient)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3 : Consentement (création uniquement) -->
+      @if (!isEdit) {
+        <div class="form-section">
+          <div class="section-header">
+            <i class="fas fa-file-signature"></i>
+            <div>
+              <h3>Consentement <span class="required">*</span></h3>
+              <p>Le consentement signé est obligatoire avant tout acte PMA</p>
+            </div>
+          </div>
+
+          <div class="form-grid form-grid-balanced">
+            <div class="form-group">
+              <label for="consentementType">Type de consentement <span class="required">*</span></label>
+              <select id="consentementType" [(ngModel)]="form.consentementType" name="consentementType" required>
+                <option value="" disabled>-- Sélectionner --</option>
+                <option value="Consentement FIV">Consentement FIV</option>
+                <option value="Consentement ICSI">Consentement ICSI</option>
+                <option value="Consentement IIU">Consentement IIU (insémination intra-utérine)</option>
+                <option value="Congélation embryonnaire">Congélation embryonnaire</option>
+                <option value="Don d'ovocytes">Don d'ovocytes</option>
+                <option value="Don de sperme">Don de sperme</option>
+                <option value="Consentement général PMA">Consentement général PMA</option>
+                <option value="Bilan andrologique / spermogramme">Bilan andrologique / spermogramme</option>
+                <option value="Consentement traitement du sperme en laboratoire">Consentement traitement du sperme en laboratoire</option>
+                <option value="Consentement cryoconservation du sperme">Consentement cryoconservation du sperme</option>
+                <option value="Consentement prélèvement testiculaire (TESA / TESE)">Consentement prélèvement testiculaire (TESA / TESE)</option>
+                <option value="Consentement prélèvement épididymaire (PESA / MESA)">Consentement prélèvement épididymaire (PESA / MESA)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="consentementDate">Date de signature <span class="required">*</span></label>
+              <input id="consentementDate" type="date" [(ngModel)]="form.consentementDate" name="consentementDate" required />
+            </div>
+
+            <div class="form-group full-width">
+              <label for="photoConsentement">Photo / scan du consentement signé <span class="required">*</span></label>
+              <input
+                id="photoConsentement"
+                class="input-file"
+                type="file"
+                accept="image/*,.pdf"
+                (change)="onConsentFileSelected($event)"
+                name="photoConsentement"
+              />
+              <p class="field-hint">Document obligatoire (photo ou PDF).</p>
+            </div>
+          </div>
+
+          <div class="consent-notice">
+            <i class="fas fa-info-circle"></i>
+            <span>Le consentement et les pièces jointes seront enregistrés avec le dossier patient.</span>
+          </div>
+        </div>
+      }
+
+      <div class="form-actions">
+        <a routerLink="/patients" class="btn btn-secondary">Annuler</a>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          @if (loading) {
+            <i class="fas fa-spinner fa-spin"></i>
+          }
+          {{ isEdit ? 'Mettre à jour' : 'Enregistrer le patient' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

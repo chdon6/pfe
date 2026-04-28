@@ -1,0 +1,343 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Détail du patient</h1>
+      @if (patient) {
+        <p>
+          @if (patient.typeDossier === 'spermogramme') {
+            {{ patient.prenom }} {{ patient.nom }} — Dossier {{ patient.numDossier }}
+            <span class="badge badge-spermogramme">Spermogramme</span>
+          } @else {
+            {{ patient.prenom }} {{ patient.nom }} &amp; {{ patient.femmePrenom }} {{ patient.femmeNom }} — Dossier {{ patient.numDossier }}
+            <span class="badge badge-couple">Couple</span>
+          }
+        </p>
+      }
+    </div>
+    <div class="header-actions">
+      @if (patient) {
+        <a [routerLink]="['/patients', patient.id, 'edit']" class="btn btn-primary">
+          <i class="fas fa-edit"></i> Modifier
+        </a>
+      }
+      <a routerLink="/patients" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour
+      </a>
+    </div>
+  </div>
+
+  @if (patient) {
+    <!-- Alerte dossier médical — pièces à archiver -->
+    @if (consentements.length === 0) {
+      <div class="alert-warning">
+        <i class="fas fa-folder-open"></i>
+        <div>
+          <strong>Dossier médical — documents à archiver</strong>
+          <p>
+            Aucune pièce documentaire n’est encore enregistrée pour ce dossier (consentement signé, pièces d’identité, etc.).
+            Complétez l’archive depuis la fiche patient ou le formulaire de création.
+          </p>
+        </div>
+      </div>
+    }
+
+    <div class="detail-layout">
+      <div class="patient-card card">
+        <!-- Photo du couple -->
+        <div class="couple-photo">
+          @if (patient.imagePath) {
+            <img [src]="patient.imagePath" [alt]="patient.typeDossier === 'spermogramme' ? 'Photo du patient' : 'Photo du couple'" />
+          } @else {
+            <div class="no-photo">
+              @if (patient.typeDossier === 'spermogramme') {
+                <i class="fas fa-user"></i>
+              } @else {
+                <i class="fas fa-users"></i>
+              }
+              <span>Pas de photo</span>
+            </div>
+          }
+        </div>
+
+        @if (patient.typeDossier === 'spermogramme') {
+          <h2>{{ patient.prenom }} {{ patient.nom }}</h2>
+          <div class="info-row">
+            <span class="label">Date de naissance</span>
+            <span class="value">{{ patient.dateNaissance | date:'dd/MM/yyyy' }}</span>
+          </div>
+        } @else {
+          <h2 class="couple-names">{{ patient.prenom }} {{ patient.nom }}</h2>
+          <div class="info-row">
+            <span class="label">Homme — date de naissance</span>
+            <span class="value">{{ patient.dateNaissance | date:'dd/MM/yyyy' }}</span>
+          </div>
+          @if (patient.femmePrenom || patient.femmeNom) {
+            <h2 class="couple-names femme">{{ patient.femmePrenom }} {{ patient.femmeNom }}</h2>
+            <div class="info-row">
+              <span class="label">Femme — date de naissance</span>
+              <span class="value">
+                @if (patient.femmeDateNaissance) {
+                  {{ patient.femmeDateNaissance | date:'dd/MM/yyyy' }}
+                } @else {
+                  —
+                }
+              </span>
+            </div>
+          }
+        }
+        <div class="info-row">
+          <span class="label">N° Dossier</span>
+          <span class="badge">{{ patient.numDossier }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Type de dossier</span>
+          <span class="value">
+            @if (patient.typeDossier === 'spermogramme') {
+              Spermogramme (homme seul)
+            } @else {
+              Couple
+            }
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="label">Acte PMA (dossier)</span>
+          <span class="value">
+            @if (patient.typeActePma) {
+              {{ libelleActeDossier(patient.typeActePma) }}
+            } @else {
+              —
+            }
+          </span>
+        </div>
+        @if (patient.typeActePma) {
+          <div class="parcours-dossier-box">
+            <i class="fas fa-info-circle"></i>
+            <span>{{ resumeParcours(patient.typeActePma) }}</span>
+          </div>
+        }
+        @if (patient.adresse) {
+          <div class="info-row">
+            <span class="label">Adresse</span>
+            <span class="value address">{{ patient.adresse }}</span>
+          </div>
+        }
+        @if (patient.telephone) {
+          <div class="info-row">
+            <span class="label">Téléphone</span>
+            <span class="value">{{ patient.telephone }}</span>
+          </div>
+        }
+
+        <!-- Résumé archive dossier -->
+        <div class="consent-summary" [class.consent-ok]="consentements.length > 0" [class.consent-missing]="consentements.length === 0">
+          <i [class]="consentements.length > 0 ? 'fas fa-archive' : 'fas fa-inbox'"></i>
+          <span>{{
+            consentements.length > 0
+              ? consentements.length + ' lot(s) documentaire(s) archivé(s)'
+              : 'Aucun document archivé'
+          }}</span>
+        </div>
+      </div>
+
+      <div class="card entity-history-card">
+        <h3><i class="fas fa-history"></i> Historique des modifications</h3>
+        <p class="entity-history-hint">
+          Traçabilité légère côté navigateur (démonstration). Une API centralisée pourra reprendre ces événements plus tard.
+        </p>
+        @if (patientModificationHistory().length === 0) {
+          <p class="empty-text">Aucune entrée pour ce dossier — enregistrez une modification via le formulaire patient.</p>
+        } @else {
+          <table class="data-table entity-history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Action</th>
+                <th>Détail</th>
+                <th>Utilisateur</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of patientModificationHistory(); track h.id) {
+                <tr>
+                  <td>{{ h.at | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td>{{ h.action }}</td>
+                  <td>{{ h.summary }}</td>
+                  <td>{{ h.actor || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+
+      <div class="tabs-section">
+        <div class="tabs">
+          <button [class.active]="activeTab === 'documents'" (click)="setTab('documents')">
+            <i class="fas fa-archive"></i> Documents du dossier ({{ consentements.length }})
+          </button>
+          <button [class.active]="activeTab === 'rdv'" (click)="setTab('rdv')">
+            <i class="fas fa-calendar-alt"></i> Rendez-vous ({{ rendezVous.length }})
+          </button>
+          <button [class.active]="activeTab === 'cycles'" (click)="setTab('cycles')">
+            <i class="fas fa-sync-alt"></i> Cycles ({{ cycles.length }})
+          </button>
+          <button [class.active]="activeTab === 'actes'" (click)="setTab('actes')">
+            <i class="fas fa-notes-medical"></i> Actes PMA ({{ actes.length }})
+          </button>
+        </div>
+
+        <div class="tab-content card">
+          @if (activeTab === 'documents') {
+            @if (consentements.length === 0) {
+              <div class="empty-consent">
+                <i class="fas fa-folder-open"></i>
+                <p>Aucun document archivé pour ce dossier</p>
+                <span>Les consentements et pièces jointes sont enregistrés à la création du patient ou via l’administration du dossier.</span>
+              </div>
+            } @else {
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Date de signature</th>
+                    <th>Pièces jointes</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of consentements; track c.id) {
+                    <tr>
+                      <td class="font-medium">{{ c.type }}</td>
+                      <td>{{ c.dateSignature | date:'dd/MM/yyyy' }}</td>
+                      <td class="consent-docs">
+                        @if (c.photoPath) {
+                          <a [href]="c.photoPath" target="_blank" rel="noopener" class="doc-link">Consentement</a>
+                        }
+                        @if (c.cinHommePath) {
+                          <a [href]="c.cinHommePath" target="_blank" rel="noopener" class="doc-link">CIN H</a>
+                        }
+                        @if (c.cinFemmePath) {
+                          <a [href]="c.cinFemmePath" target="_blank" rel="noopener" class="doc-link">CIN F</a>
+                        }
+                        @if (c.contratMariagePath) {
+                          <a [href]="c.contratMariagePath" target="_blank" rel="noopener" class="doc-link">Contrat mariage</a>
+                        }
+                        @if (!c.photoPath && !c.cinHommePath && !c.cinFemmePath && !c.contratMariagePath) {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td><span class="badge badge-green"><i class="fas fa-check"></i> Signé</span></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          }
+
+          @if (activeTab === 'rdv') {
+            @if (rendezVous.length === 0) {
+              <p class="empty-text">Aucun rendez-vous</p>
+            } @else {
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Motif</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (rdv of rendezVous; track rdv.id) {
+                    <tr>
+                      <td>{{ rdv.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+                      <td>{{ rdv.motif }}</td>
+                      <td><span class="badge">{{ rdv.statut }}</span></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          }
+
+          @if (activeTab === 'cycles') {
+            @if (cycles.length === 0) {
+              <p class="empty-text">Aucun cycle PMA</p>
+            } @else {
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Phase</th>
+                    <th>Étape courante</th>
+                    <th>Statut</th>
+                    <th>Date début</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (cycle of cycles; track cycle.id) {
+                    <tr>
+                      <td>{{ cycle.phase }}</td>
+                      <td>{{ cycle.etapeCourante }}</td>
+                      <td><span class="badge">{{ cycle.statutCycle }}</span></td>
+                      <td>{{ cycle.dateDebut | date:'dd/MM/yyyy' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          }
+
+          @if (activeTab === 'actes') {
+            <div class="actes-tab-toolbar">
+              @if (canPrescrireActe && patient) {
+                <a [routerLink]="['/actes']" [queryParams]="{ patientId: patient.id }" class="btn btn-primary btn-sm">
+                  <i class="fas fa-plus"></i> Prescrire un acte pour ce patient
+                </a>
+              }
+            </div>
+            @if (actes.length === 0) {
+              <p class="empty-text">Aucun acte PMA prescrit pour ce dossier.</p>
+              @if (canPrescrireActe && patient) {
+                <p class="empty-text hint">Ex. FIV, ICSI, transfert embryonnaire — à réaliser par le biologiste.</p>
+              }
+            } @else {
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Libellé</th>
+                    <th>Statut (réalisation)</th>
+                    <th>Observations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (a of actes; track a.id) {
+                    <tr>
+                      <td><span class="badge badge-type">{{ libelleType(a.typeActe) }}</span></td>
+                      <td class="font-medium">{{ a.libelle }}</td>
+                      <td>
+                        @if (canMettreAJourStatutActe) {
+                          <select
+                            class="select-statut"
+                            [value]="a.statutRealisation"
+                            (change)="onStatutActeChange(a, $event)"
+                          >
+                            @for (s of statutOptions; track s.code) {
+                              <option [value]="s.code">{{ s.label }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span class="badge">{{ libelleStatut(a.statutRealisation) }}</span>
+                        }
+                      </td>
+                      <td>{{ a.observation || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

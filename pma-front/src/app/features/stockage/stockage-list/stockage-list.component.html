@@ -1,0 +1,325 @@
+<div class="page rz-page">
+  <div class="page-header rz-page-header">
+    <div>
+      <h1>Stockage Cryogénique</h1>
+      <p>Gestion et traçabilité des éléments biologiques</p>
+    </div>
+    <div class="rz-row-aside" style="flex-wrap: wrap;">
+      <button type="button" class="btn btn-accent" (click)="ouvrirPlacement()">
+        <i class="fas fa-map-marker-alt"></i> Placer un échantillon (dossier cryo)
+      </button>
+      <button type="button" class="btn btn-primary" (click)="showBonbonneForm = !showBonbonneForm">
+        <i class="fas fa-plus"></i> Nouvelle bonbonne
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="showCanisterForm = !showCanisterForm">
+        <i class="fas fa-plus"></i> Nouveau canister
+      </button>
+    </div>
+  </div>
+
+  @if (showPlacementForm) {
+    <div class="card placement-cryo-card">
+      <h2><i class="fas fa-snowflake"></i> Placement cryo — bonbonne, canister, tube</h2>
+      <p class="placement-intro">
+        Les <strong>dossiers avec acte cryo / AMP</strong> apparaissent ici. Choisissez une
+        <strong>bonbonne</strong> (repère code + couleur), un <strong>canister</strong>, une
+        <strong>position libre</strong>, le <strong>type de visotube</strong> (IMV polygonal, 10 mm ou 7.1 mm),
+        la <strong>couleur</strong> selon la palette du fabricant, et le <strong>code-barres</strong>. Pour un parcours
+        <strong>FIV / cycle</strong>, liez le cycle ; pour une
+        <strong>conservation de sperme</strong> seule, laissez le cycle vide.
+      </p>
+      @if (placementError) {
+        <div class="alert-error"><i class="fas fa-exclamation-circle"></i> {{ placementError }}</div>
+      }
+      <form (ngSubmit)="savePlacement()">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label>Patient (acte nécessitant stockage)</label>
+            <select
+              [(ngModel)]="placement.patientId"
+              name="plPatient"
+              required
+              (ngModelChange)="onPlacementPatientChange()">
+              <option [ngValue]="0" disabled>-- Sélectionner un dossier --</option>
+              @for (p of patientsPourStockageCryo(); track p.id) {
+                <option [ngValue]="p.id">{{ libellePatient(p) }}</option>
+              }
+            </select>
+            @if (patientsPourStockageCryo().length === 0) {
+              <p class="field-hint warn">Aucun patient avec acte de cryoconservation / AMP dans la liste API. Vérifiez le type d'acte sur le dossier.</p>
+            }
+          </div>
+          @if (placement.patientId) {
+            <div class="form-group full-width placement-conseil">
+              <i class="fas fa-info-circle"></i> {{ conseilPatient() }}
+            </div>
+          }
+          <div class="form-group full-width">
+            <label>Cycle PMA (optionnel)</label>
+            <select [(ngModel)]="placement.cyclePmaId" name="plCycle" [disabled]="!placement.patientId">
+              <option [ngValue]="0">— Pas de cycle (ex. cryoconservation sperme seule) —</option>
+              @for (cy of cyclesDuPatient(); track cy.id) {
+                <option [ngValue]="cy.id">
+                  Cycle #{{ cy.id }} — {{ cy.phase || 'phase' }} ({{ cy.statutCycle }})
+                </option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Bonbonne suggérée selon l'acte</label>
+            <select
+              [(ngModel)]="placement.bonbonneId"
+              name="plBb"
+              required
+              (ngModelChange)="onPlacementBonbonneChange()">
+              <option [ngValue]="0" disabled>-- Choisir la bonbonne --</option>
+              @for (b of bonbonnesPourActeDossier(); track b.id) {
+                <option [ngValue]="b.id">
+                  {{ b.code || ('Bonbonne #' + b.id) }}
+                  @if (b.couleur) {
+                    [couleur {{ b.couleur }}]
+                  }
+                  — {{ b.typeStockage }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Canister</label>
+            <select
+              [(ngModel)]="placement.canisterId"
+              name="plCan"
+              required
+              [disabled]="!placement.bonbonneId"
+              (ngModelChange)="onPlacementCanisterChange()">
+              <option [ngValue]="0" disabled>-- Canister --</option>
+              @for (can of canistersForBonbonne(placement.bonbonneId); track can.id) {
+                <option [ngValue]="can.id">Canister n° {{ can.numero }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Position libre</label>
+            <select [(ngModel)]="placement.position" name="plPos" required [disabled]="!placement.canisterId">
+              <option [ngValue]="0" disabled>-- Emplacement --</option>
+              @for (pos of positionsLibresDuCanister(); track pos) {
+                <option [ngValue]="pos">Position {{ pos }} (libre)</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Code-barres étiquette <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="placement.codeBarre" name="plCb" required placeholder="Unique" />
+          </div>
+          <div class="form-group">
+            <label>Type de contenu</label>
+            <input
+              type="text"
+              [(ngModel)]="placement.typeContenu"
+              name="plType"
+              placeholder="Ex: Sperme cryoconservé, Embryons vitrifiés…"
+            />
+          </div>
+          <div class="form-group">
+            <label>Type de visotube</label>
+            <select
+              [(ngModel)]="placement.visotubeFamilleId"
+              name="plVisoFam"
+              (ngModelChange)="onVisotubeFamilleChange()">
+              @for (fam of visotubeFamilles; track fam.id) {
+                <option [ngValue]="fam.id">{{ fam.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Couleur (palette du type choisi)</label>
+            <select [(ngModel)]="placement.visotubeCouleurNom" name="plVisoCol" required>
+              @for (c of couleursVisotubePourFamille(placement.visotubeFamilleId); track c.nom) {
+                <option [ngValue]="c.nom">{{ c.nom }}</option>
+              }
+            </select>
+            <p class="field-hint">Polygonal IMV : 6 couleurs · 10 mm : 8 · 7.1 mm : 7.</p>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="showPlacementForm = false">Fermer</button>
+          <button type="submit" class="btn btn-primary">Enregistrer le placement</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+  } @else {
+    <div class="rz-stat-grid">
+      <div class="rz-stat-card">
+        <p class="rz-stat-value">{{ bonbonnes.length }}</p>
+        <p class="rz-stat-label">Bonbonnes</p>
+      </div>
+      <div class="rz-stat-card">
+        <p class="rz-stat-value rz-stat-value--primary">{{ pailles.length }}</p>
+        <p class="rz-stat-label">Échantillons stockés</p>
+      </div>
+      <div class="rz-stat-card">
+        <p class="rz-stat-value rz-stat-value--accent">{{ freeTubeSlots }}</p>
+        <p class="rz-stat-label">Emplacements libres</p>
+      </div>
+    </div>
+
+    @if (showBonbonneForm) {
+      <div class="card form-card">
+        <form (ngSubmit)="saveBonbonne()">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Code bonbonne (repère salle)</label>
+              <input type="text" [(ngModel)]="newBonbonne.code" name="bbCode" placeholder="Ex: BB-EMB-01" />
+            </div>
+
+            <div class="form-group">
+              <label>Couleur (repère visuel)</label>
+              <select [(ngModel)]="newBonbonne.couleur" name="bbCouleur">
+                <option value="">-- Choisir une couleur --</option>
+                <option value="Noir">Noir</option>
+                <option value="Bleu">Bleu</option>
+                <option value="Rouge">Rouge</option>
+                <option value="Vert">Vert</option>
+                <option value="Jaune">Jaune</option>
+                <option value="Blanc">Blanc</option>
+                <option value="Gris">Gris</option>
+                <option value="Orange">Orange</option>
+                <option value="Violet">Violet</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Type de stockage</label>
+              <select [(ngModel)]="newBonbonne.typeStockage" name="typeStockage" required>
+                <option value="">-- Choisir le type --</option>
+                <option value="Azote liquide">Azote liquide</option>
+                <option value="Azote vapeur">Azote vapeur</option>
+                <option value="Congélateur -80°C">Congélateur -80°C</option>
+                <option value="Congélateur -20°C">Congélateur -20°C</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Température</label>
+              <select [(ngModel)]="newBonbonne.temperature" name="temperature" required>
+                <option value="">-- Choisir la température --</option>
+                <option value="-196°C">-196°C (Azote liquide)</option>
+                <option value="-150°C">-150°C (Azote vapeur)</option>
+                <option value="-80°C">-80°C</option>
+                <option value="-20°C">-20°C</option>
+                <option value="4°C">4°C</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" (click)="showBonbonneForm = false">Annuler</button>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    }
+
+    <div class="rz-grid-gap-6">
+      @for (b of bonbonnes; track b.id) {
+        <div class="rz-panel">
+          <div class="rz-bonbonne-head">
+            <div class="rz-avatar rz-avatar--square">
+              <i class="fas fa-snowflake"></i>
+            </div>
+            <div>
+              <h3>
+                @if (b.code) {
+                  <span>{{ b.code }}</span>
+                } @else {
+                  Bonbonne {{ b.id }}
+                }
+                @if (b.couleur) {
+                  <span class="rz-bb-swatch" [style.background]="b.couleur.startsWith('#') ? b.couleur : b.couleur" [title]="b.couleur"></span>
+                }
+                <span class="rz-badge-muted">{{ b.typeStockage }}</span>
+              </h3>
+              <p class="rz-bonbonne-sub">Température : {{ b.temperature }}</p>
+            </div>
+            <div class="rz-row-aside" style="margin-left: auto;">
+              <button type="button" class="btn-icon btn-danger" (click)="deleteBonbonne(b.id)" title="Supprimer la bonbonne">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="rz-ml-2">
+            @for (canister of canistersForBonbonne(b.id); track canister.id) {
+              <div class="rz-canister-box">
+                <div class="rz-canister-head">
+                  <i class="fas fa-database"></i>
+                  <span class="rz-canister-title">Canister {{ canister.numero }}</span>
+                  <span class="rz-canister-count">
+                    ({{ occupiedCountForCanister(canister.id) }}/{{ tubeSlotsForCanister(canister).length }} occupés)
+                  </span>
+                  <span class="rz-row-aside" style="margin-left: auto;">
+                    <button type="button" class="btn-icon btn-danger" (click)="deleteCanister(canister.id)" title="Supprimer">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </span>
+                </div>
+                <div class="rz-tube-grid">
+                  @for (slot of tubeSlotsForCanister(canister); track $index) {
+                    @if (slot.kind === 'fill') {
+                      <button
+                        type="button"
+                        class="rz-tube rz-tube--filled"
+                        [style.--tube-accent]="hexAccentVisotube(slot.p)"
+                        [class.rz-tube--accent]="!!slot.p.couleurVisotube?.trim()"
+                        [title]="slot.p.codeBarre + ' — ' + slot.p.typeContenu + (slot.p.couleurVisotube ? ' — ' + slot.p.couleurVisotube : '')">
+                        P{{ slot.p.position }}
+                      </button>
+                    } @else {
+                      <span class="rz-tube rz-tube--empty" title="Vide">—</span>
+                    }
+                  }
+                </div>
+              </div>
+            }
+            @if (canistersForBonbonne(b.id).length === 0) {
+              <p class="rz-text-sm-muted">Aucun canister pour cette bonbonne.</p>
+              <button type="button" class="btn btn-secondary" (click)="showCanisterForm = true; newCanister.bonbonneId = b.id">
+                <i class="fas fa-plus"></i> Nouveau canister
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (showCanisterForm) {
+      <div class="card form-card" style="margin-top: 1rem;">
+        <h2>Nouveau canister</h2>
+        <form (ngSubmit)="saveCanister()">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Numéro</label>
+              <input type="number" [(ngModel)]="newCanister.numero" name="numero" required />
+            </div>
+            <div class="form-group">
+              <label>Bonbonne</label>
+              <select [(ngModel)]="newCanister.bonbonneId" name="bonbonneId" required>
+                <option [ngValue]="0" disabled>-- Sélectionner --</option>
+                @for (b of bonbonnes; track b.id) {
+                  <option [ngValue]="b.id">{{ b.typeStockage }} ({{ b.temperature }})</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" (click)="showCanisterForm = false">Annuler</button>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    }
+  }
+</div>

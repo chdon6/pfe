@@ -1,0 +1,13 @@
+@if (!loading && alerts.length > 0) {
+  <aside class="app-alerts-bar" role="region" aria-label="Rappels et alertes">
+    @for (a of alerts; track a.id) {
+      <div class="app-alert" [class]="'app-alert--' + a.kind">
+        <i [class]="a.icon" aria-hidden="true"></i>
+        <span class="app-alert__text">{{ a.text }}</span>
+        @if (a.link) {
+          <a [routerLink]="a.link" class="app-alert__link">Voir</a>
+        }
+      </div>
+    }
+  </aside>
+}

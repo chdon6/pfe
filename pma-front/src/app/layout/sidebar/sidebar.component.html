@@ -1,0 +1,33 @@
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <i class="fas fa-heartbeat"></i>
+    <span>PMA</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    @for (item of roleService.menuItems(); track item.route) {
+      <a [routerLink]="item.route"
+         routerLinkActive="active"
+         class="nav-item">
+        <i [class]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <i class="fas fa-user-circle"></i>
+      <div class="user-details">
+        @if (auth.user(); as user) {
+          <span class="user-name">{{ user.prenom }} {{ user.nom }}</span>
+        }
+        <span class="user-role">{{ roleService.roleName() }}</span>
+      </div>
+    </div>
+    <button class="btn-logout" (click)="auth.logout()">
+      <i class="fas fa-sign-out-alt"></i>
+      <span>Déconnexion</span>
+    </button>
+  </div>
+</aside>

@@ -1,0 +1,441 @@
+<div class="dashboard">
+  <div class="page-header">
+    <h1>Tableau de bord</h1>
+    @switch (role.role()) {
+      @case ('Biologiste') {
+        <div class="page-header-desc">
+          <p>Vue complète — Supervision générale</p>
+        </div>
+      }
+      @case ('Secretaire') {
+        <div class="page-header-desc">
+          <p>Espace secrétariat — Patients &amp; rendez-vous</p>
+        </div>
+      }
+      @case ('Administrateur') {
+        <div class="page-header-desc">
+          <p>Administration — Comptes &amp; profils métier</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- STATS SECRÉTAIRE (même langage graphique que l’admin) -->
+  @if (role.role() === 'Secretaire') {
+    <section class="admin-stats-section admin-stats-section--compact" aria-label="Indicateurs secrétariat">
+      <div class="stats-grid stats-grid-admin">
+        <article class="admin-stat-card admin-stat-card--patients">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-user-injured" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Patients</span>
+              <span class="admin-stat-card__value">{{ totalPatients }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--rdv">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Rendez-vous</span>
+              <span class="admin-stat-card__value">{{ totalRdv }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  }
+
+  <!-- STATS BIOLOGISTE -->
+  @if (role.role() === 'Biologiste') {
+    <section class="admin-stats-section admin-stats-section--compact" aria-label="Indicateurs laboratoire">
+      <div class="stats-grid stats-grid-admin">
+        <article class="admin-stat-card admin-stat-card--cycles">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-sync-alt" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Cycles PMA</span>
+              <span class="admin-stat-card__value">{{ totalCycles }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--actifs">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-play-circle" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Cycles actifs</span>
+              <span class="admin-stat-card__value">{{ cyclesActifs }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  }
+
+  <!-- VUE SYNTHÈSE + AUDIT — ADMINISTRATEUR -->
+  @if (role.role() === 'Administrateur') {
+    <section class="admin-stats-section" aria-label="Indicateurs de synthèse">
+      <div class="stats-grid stats-grid-admin">
+        <article class="admin-stat-card admin-stat-card--patients">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-user-injured" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Dossiers patients</span>
+              <span class="admin-stat-card__value">{{ adminStatsLoading ? '—' : adminTotalPatients }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--rdv">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Rendez-vous</span>
+              <span class="admin-stat-card__value">{{ adminStatsLoading ? '—' : adminTotalRdv }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--cycles">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-sync-alt" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Cycles PMA (total)</span>
+              <span class="admin-stat-card__value">{{ adminStatsLoading ? '—' : adminTotalCycles }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--actifs">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-play-circle" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Cycles actifs</span>
+              <span class="admin-stat-card__value">{{ adminStatsLoading ? '—' : adminCyclesActifs }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--users">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-users" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Comptes utilisateurs</span>
+              <span class="admin-stat-card__value">{{ adminStatsLoading ? '—' : adminUsers }}</span>
+            </div>
+          </div>
+        </article>
+        <article class="admin-stat-card admin-stat-card--actes">
+          <div class="admin-stat-card__accent" aria-hidden="true"></div>
+          <div class="admin-stat-card__body">
+            <div class="admin-stat-card__icon-wrap">
+              <i class="fas fa-notes-medical" aria-hidden="true"></i>
+            </div>
+            <div class="admin-stat-card__text">
+              <span class="admin-stat-card__label">Actes PMA (prescrits)</span>
+              <span class="admin-stat-card__value">{{ adminStatsLoading ? '—' : adminActes }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <p class="admin-synth-hint">
+      Indicateurs agrégés en lecture seule (données exposées par l’API). Les compteurs peuvent rester partiels si une requête échoue.
+    </p>
+
+    <div class="admin-export-toolbar">
+      <span class="admin-export-label">Exports</span>
+      <button type="button" class="btn-export" (click)="exportAdminStatsCsv()">
+        <i class="fas fa-file-csv"></i> Synthèse (CSV)
+      </button>
+      <button type="button" class="btn-export" (click)="exportAdminStatsPdf()">
+        <i class="fas fa-print"></i> Synthèse (PDF)
+      </button>
+    </div>
+
+    <div class="admin-dashboard-below">
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-user-shield"></i> Administration</h2>
+        </div>
+        <div class="card-body quick-actions">
+          <a routerLink="/administration/utilisateurs" class="quick-action">
+            <i class="fas fa-users-cog"></i>
+            <span>Gestion des utilisateurs</span>
+          </a>
+          <a routerLink="/administration/sante" class="quick-action">
+            <i class="fas fa-heartbeat"></i>
+            <span>Santé de l’application</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="card admin-audit-card">
+        <div class="card-header">
+          <h2><i class="fas fa-clipboard-list"></i> Journal d’audit</h2>
+          <div class="card-header-actions">
+            @if (adminAudit.entries().length > 0) {
+              <button type="button" class="btn-link btn-link-muted" (click)="clearAdminAuditJournal()">
+                Vider le journal
+              </button>
+            }
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="admin-audit-intro">
+            Connexions, déconnexions et actions sur les comptes (navigateur courant — local).
+          </p>
+
+          <div class="admin-audit-filters">
+            <label class="filter-field">
+              <span>Recherche</span>
+              <input
+                type="search"
+                placeholder="Texte libre..."
+                [ngModel]="auditSearch()"
+                (ngModelChange)="auditSearch.set($event)"
+              />
+            </label>
+            <label class="filter-field">
+              <span>Action</span>
+              <select [ngModel]="auditAction()" (ngModelChange)="auditAction.set($event)">
+                <option value="">Toutes</option>
+                @for (a of auditActionOptions(); track a) {
+                  <option [value]="a">{{ a }}</option>
+                }
+              </select>
+            </label>
+            <label class="filter-field">
+              <span>Du</span>
+              <input type="date" [ngModel]="auditDateFrom()" (ngModelChange)="auditDateFrom.set($event)" />
+            </label>
+            <label class="filter-field">
+              <span>Au</span>
+              <input type="date" [ngModel]="auditDateTo()" (ngModelChange)="auditDateTo.set($event)" />
+            </label>
+            <button type="button" class="btn-filter-reset" (click)="resetAuditFilters()">Réinitialiser</button>
+          </div>
+
+          <div class="admin-export-toolbar admin-export-toolbar--inline">
+            <button type="button" class="btn-export" (click)="exportAdminAuditCsv()">
+              <i class="fas fa-file-csv"></i> Filtré (CSV)
+            </button>
+            <button type="button" class="btn-export" (click)="exportAdminAuditPdf()">
+              <i class="fas fa-print"></i> Filtré (PDF)
+            </button>
+            <span class="audit-count">{{ filteredAuditEntries().length }} / {{ adminAudit.entries().length }} ligne(s)</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table admin-audit-table">
+              <thead>
+                <tr>
+                  <th>Date / heure</th>
+                  <th>Action</th>
+                  <th>Détail</th>
+                  <th>Compte</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of filteredAuditEntries(); track e.id) {
+                  <tr>
+                    <td>{{ e.at | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                    <td>{{ e.action }}</td>
+                    <td>{{ e.detail || '—' }}</td>
+                    <td>{{ e.actor || '—' }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="4" class="empty-text">
+                      Aucun événement ne correspond aux filtres — ou journal vide.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="content-grid">
+    <!-- Patients — secrétaire -->
+    @if (role.role() === 'Secretaire') {
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-user-injured"></i> Derniers patients</h2>
+          <a routerLink="/patients" class="btn-link">Voir tout</a>
+        </div>
+        <div class="card-body">
+          @if (recentPatients.length === 0) {
+            <p class="empty-text">Aucun patient enregistré</p>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>Nom</th><th>Prénom</th><th>N° Dossier</th></tr>
+              </thead>
+              <tbody>
+                @for (p of recentPatients; track p.id) {
+                  <tr>
+                    <td>
+                      @if (p.typeDossier !== 'spermogramme' && p.femmeNom) {
+                        {{ p.nom }} / {{ p.femmeNom }}
+                      } @else {
+                        {{ p.nom }}
+                      }
+                    </td>
+                    <td>
+                      @if (p.typeDossier !== 'spermogramme' && p.femmePrenom) {
+                        {{ p.prenom }} / {{ p.femmePrenom }}
+                      } @else {
+                        {{ p.prenom }}
+                      }
+                    </td>
+                    <td><span class="badge">{{ p.numDossier }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- RDV — secrétaire -->
+    @if (role.role() === 'Secretaire') {
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-calendar-alt"></i> Prochains rendez-vous</h2>
+          <a routerLink="/rendez-vous" class="btn-link">Voir tout</a>
+        </div>
+        <div class="card-body">
+          @if (prochainRdv.length === 0) {
+            <p class="empty-text">Aucun rendez-vous à venir</p>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Motif</th></tr>
+              </thead>
+              <tbody>
+                @for (rdv of prochainRdv; track rdv.id) {
+                  <tr>
+                    <td>{{ rdv.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+                    <td>{{ rdv.motif }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </div>
+    }
+
+    @if (role.role() === 'Technicien') {
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-bolt"></i> Accès rapide</h2>
+        </div>
+        <div class="card-body quick-actions">
+          <a routerLink="/identitovigilance/tracabilite" class="quick-action">
+            <i class="fas fa-stream"></i>
+            <span>Historique entrées / sorties</span>
+          </a>
+          <a routerLink="/identitovigilance/cryoconservation" class="quick-action">
+            <i class="fas fa-snowflake"></i>
+            <span>Localisation échantillons</span>
+          </a>
+          <a routerLink="/stockage" class="quick-action">
+            <i class="fas fa-warehouse"></i>
+            <span>Occupation des bombonnes</span>
+          </a>
+          <a routerLink="/elements-bio" class="quick-action">
+            <i class="fas fa-vials"></i>
+            <span>Résultats d’analyses (saisie sous supervision)</span>
+          </a>
+        </div>
+      </div>
+    }
+
+    <!-- Accès rapide — biologiste (sans accueil / stockage labo) -->
+    @if (role.role() === 'Biologiste') {
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-bolt"></i> Accès rapide</h2>
+        </div>
+        <div class="card-body quick-actions">
+          <a routerLink="/cycles" class="quick-action">
+            <i class="fas fa-project-diagram"></i>
+            <span>Cycles &amp; suivi PMA</span>
+          </a>
+          <a routerLink="/identitovigilance/etiquettes" class="quick-action">
+            <i class="fas fa-tags"></i>
+            <span>Étiquettes</span>
+          </a>
+          <a routerLink="/identitovigilance/scan" class="quick-action">
+            <i class="fas fa-barcode"></i>
+            <span>Vérification scan</span>
+          </a>
+          <a routerLink="/identitovigilance/cryoconservation" class="quick-action">
+            <i class="fas fa-snowflake"></i>
+            <span>Cryoconservation</span>
+          </a>
+          <a routerLink="/identitovigilance/tracabilite" class="quick-action">
+            <i class="fas fa-stream"></i>
+            <span>Traçabilité</span>
+          </a>
+        </div>
+      </div>
+    }
+
+    <!-- Quick actions - Secrétaire -->
+    @if (role.role() === 'Secretaire') {
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-bolt"></i> Accès rapide</h2>
+        </div>
+        <div class="card-body quick-actions">
+          <a routerLink="/patients/new" class="quick-action">
+            <i class="fas fa-user-plus"></i>
+            <span>Nouveau patient</span>
+          </a>
+          <a routerLink="/rendez-vous" class="quick-action">
+            <i class="fas fa-calendar-plus"></i>
+            <span>Planifier RDV</span>
+          </a>
+          <a routerLink="/archives-dossiers" class="quick-action">
+            <i class="fas fa-archive"></i>
+            <span>Archives dossiers</span>
+          </a>
+          <a routerLink="/identitovigilance/etiquettes" class="quick-action">
+            <i class="fas fa-tags"></i>
+            <span>Étiquettes</span>
+          </a>
+        </div>
+      </div>
+    }
+  </div>
+</div>

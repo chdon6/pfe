@@ -1,0 +1,165 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Administration des utilisateurs</h1>
+      <p>
+        Création, modification et suppression des comptes <strong>Secrétaire</strong>, <strong>Biologiste</strong> et
+        <strong>Technicien</strong>. Vous définissez l’identifiant et le mot de passe. Le profil
+        <strong>Administrateur</strong> n’est pas attribuable ici (compte système).
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNew()">
+      <i class="fas fa-plus"></i> Nouvel utilisateur
+    </button>
+  </div>
+
+  <div class="alert-access-info">
+    <i class="fas fa-info-circle"></i>
+    <span>
+      Administrateur : <kbd>admin</kbd> / <kbd>admin123</kbd> — connexion à l’API en priorité ; si l’API est arrêtée ou
+      renvoie une erreur (compte absent en base), une session locale permet l’accès (sans enregistrement en base).
+    </span>
+  </div>
+
+  @if (isDemoAdmin()) {
+    <div class="alert-demo">
+      <i class="fas fa-info-circle"></i>
+      <span>
+        Connexion hors API : affichage local uniquement. Démarrez l’API (<code>{{ apiBaseUrl }}</code>), puis reconnectez-vous avec
+        <kbd>admin</kbd> pour que création / modification / suppression soient enregistrées.
+      </span>
+    </div>
+  }
+
+  @if (formError && !showForm) {
+    <div class="alert-error banner-error"><i class="fas fa-exclamation-circle"></i> {{ formError }}</div>
+  }
+
+  @if (showForm) {
+    <div class="card form-card">
+      <h2>{{ editUser.id ? 'Modifier l’utilisateur' : 'Nouvel utilisateur' }}</h2>
+      @if (formError) {
+        <div class="alert-error"><i class="fas fa-exclamation-circle"></i> {{ formError }}</div>
+      }
+      <form (ngSubmit)="saveUser()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="u-nom">Nom <span class="req">*</span></label>
+            <input id="u-nom" type="text" [(ngModel)]="editUser.nom" name="nom" required placeholder="Nom" />
+          </div>
+          <div class="form-group">
+            <label for="u-prenom">Prénom <span class="req">*</span></label>
+            <input id="u-prenom" type="text" [(ngModel)]="editUser.prenom" name="prenom" required placeholder="Prénom" />
+          </div>
+          <div class="form-group">
+            <label for="u-id">Identifiant de connexion <span class="req">*</span></label>
+            <input
+              id="u-id"
+              type="text"
+              [(ngModel)]="editUser.identifiant"
+              name="identifiant"
+              required
+              placeholder="Ex. jdupont"
+              autocomplete="off"
+            />
+          </div>
+          <div class="form-group">
+            <label for="u-tel">Téléphone</label>
+            <input id="u-tel" type="text" [(ngModel)]="editUser.telephone" name="telephone" placeholder="Téléphone" />
+          </div>
+          <div class="form-group full-width">
+            <label for="u-prof">Profil métier <span class="req">*</span></label>
+            @if (isAdministrateur(editUser)) {
+              <p class="field-readonly">
+                <i class="fas fa-lock"></i> {{ getProfileName(editUser) }} — profil non modifiable pour ce compte.
+              </p>
+            } @else {
+              <select id="u-prof" [(ngModel)]="editUser.profileId" name="profileId" required>
+                <option [ngValue]="undefined" disabled>— Choisir un profil —</option>
+                @for (p of assignableProfiles; track p.id) {
+                  <option [ngValue]="p.id">{{ p.libelle }}</option>
+                }
+              </select>
+            }
+          </div>
+          <div class="form-group">
+            <label for="u-pw">{{ editUser.id ? 'Nouveau mot de passe' : 'Mot de passe' }} @if (!editUser.id) {<span class="req">*</span>}</label>
+            <input
+              id="u-pw"
+              type="password"
+              [(ngModel)]="password"
+              name="password"
+              [placeholder]="editUser.id ? 'Laisser vide pour ne pas changer' : 'Mot de passe initial'"
+              autocomplete="new-password"
+            />
+          </div>
+          <div class="form-group">
+            <label for="u-pw2">Confirmation mot de passe @if (!editUser.id) {<span class="req">*</span>}</label>
+            <input
+              id="u-pw2"
+              type="password"
+              [(ngModel)]="confirmPassword"
+              name="confirmPassword"
+              placeholder="Confirmer"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="showForm = false">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <div class="card">
+    @if (loading) {
+      <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+    } @else {
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th>Identifiant</th>
+            <th>Téléphone</th>
+            <th>Profil</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users; track user.id) {
+            <tr [class.row-admin]="isAdministrateur(user)">
+              <td class="font-medium">{{ user.nom }}</td>
+              <td>{{ user.prenom }}</td>
+              <td><span class="badge">{{ user.identifiant }}</span></td>
+              <td>{{ user.telephone || '—' }}</td>
+              <td>
+                {{ getProfileName(user) }}
+                @if (isAdministrateur(user)) {
+                  <span class="tag-admin">Admin</span>
+                }
+              </td>
+              <td>
+                <div class="actions">
+                  <button type="button" class="btn-icon" (click)="editExisting(user)" title="Modifier">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-icon btn-danger"
+                    [disabled]="isAdministrateur(user)"
+                    (click)="deleteUser(user)"
+                    [title]="isAdministrateur(user) ? 'Compte administrateur protégé' : 'Supprimer'">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

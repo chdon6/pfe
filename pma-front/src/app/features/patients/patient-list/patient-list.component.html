@@ -1,0 +1,95 @@
+<div class="page rz-page">
+  <div class="page-header rz-page-header">
+    <div>
+      <h1>Gestion des Patients</h1>
+      <p>Ajouter et gérer les dossiers patients PMA</p>
+    </div>
+    <a routerLink="/patients/new" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Nouveau patient
+    </a>
+  </div>
+
+  <div class="rz-search">
+    <i class="fas fa-search rz-search-icon"></i>
+    <input
+      type="text"
+      placeholder="Rechercher un patient…"
+      [(ngModel)]="searchTerm"
+      (ngModelChange)="onSearch()"
+    />
+  </div>
+
+  @if (loading) {
+    <div class="loading">
+      <i class="fas fa-spinner fa-spin"></i> Chargement...
+    </div>
+  } @else if (filteredPatients.length === 0) {
+    <div class="empty-state">
+      <i class="fas fa-user-injured"></i>
+      <p>Aucun patient trouvé</p>
+    </div>
+  } @else {
+    <div class="rz-grid-gap-3">
+      @for (patient of filteredPatients; track patient.id) {
+        <div class="rz-row-card">
+          <div class="rz-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="rz-flex-1-min">
+            <div class="rz-title-row">
+              <span class="rz-font-medium">
+                @if (patient.typeDossier === 'spermogramme') {
+                  {{ patient.nom }} {{ patient.prenom }}
+                } @else {
+                  {{ patient.nom }} {{ patient.prenom }}
+                }
+              </span>
+              <span class="rz-badge-muted">{{ patient.numDossier }}</span>
+              @if (patient.demo) {
+                <span class="rz-badge-demo" title="Fiche locale pour les tests">Test</span>
+              }
+            </div>
+            <div class="rz-text-sm-muted">
+              @if (patient.typeDossier !== 'spermogramme' && (patient.femmeNom || patient.femmePrenom)) {
+                <span>Conjoint(e) : {{ patient.femmePrenom }} {{ patient.femmeNom }} • </span>
+              }
+              <span>
+                @if (patient.typeDossier === 'spermogramme') {
+                  Né(e) le {{ patient.dateNaissance | date:'dd/MM/yyyy' }}
+                } @else {
+                  Lui {{ patient.dateNaissance | date:'dd/MM/yyyy' }}
+                  @if (patient.femmeDateNaissance) {
+                    · Elle {{ patient.femmeDateNaissance | date:'dd/MM/yyyy' }}
+                  }
+                }
+              </span>
+              @if (patient.telephone) {
+                <span> • {{ patient.telephone }}</span>
+              }
+            </div>
+          </div>
+          <span class="rz-text-xs-muted">
+            @if (patient.typeDossier === 'spermogramme') {
+              Spermogramme
+            } @else {
+              Couple
+            }
+          </span>
+          <div class="rz-row-aside">
+            <a [routerLink]="['/patients', patient.id]" class="btn-icon" title="Voir">
+              <i class="fas fa-eye"></i>
+            </a>
+            @if (!patient.demo) {
+              <a [routerLink]="['/patients', patient.id, 'edit']" class="btn-icon" title="Modifier">
+                <i class="fas fa-edit"></i>
+              </a>
+              <button class="btn-icon btn-danger" type="button" (click)="deletePatient(patient.id)" title="Supprimer">
+                <i class="fas fa-trash"></i>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

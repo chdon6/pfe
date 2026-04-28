@@ -1,0 +1,708 @@
+// Interface « maquettes » — lisibilité renforcée (PFE) : tailles confortables, hiérarchie claire
+// Préfixe .rz- — combiner avec .page du layout
+
+// --- Palette & ombres (cohérente, soignée) ---
+$r-foreground: #0f172a;
+$r-muted-fg: #5c6578;
+$r-muted: #eef2f7;
+$r-primary: #6d28d9;
+$r-primary-light: #8b5cf6;
+$r-card: #ffffff;
+$r-border: rgba(15, 23, 42, 0.09);
+$r-accent: #0d9488;
+$r-surface: #f8fafc;
+
+$rz-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+$rz-shadow-md: 0 4px 14px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.04);
+$rz-shadow-hover: 0 8px 28px rgba(15, 23, 42, 0.1), 0 2px 8px rgba(15, 23, 42, 0.05);
+$rz-radius: 14px;
+$rz-radius-sm: 10px;
+
+// --- Échelle typographique (plus grande qu’avant) ---
+$rz-fs-h1: clamp(1.625rem, 2.5vw, 2rem); // ~26–32px
+$rz-fs-lead: 1.0625rem; // 17px
+$rz-fs-body: 1rem; // 16px
+$rz-fs-md: 1.0625rem; // 17px — titres secondaires / noms
+$rz-fs-sm: 0.9375rem; // 15px — méta, badges
+$rz-fs-xs: 0.8125rem; // 13px — minimum lisible
+$rz-fs-stat: clamp(1.75rem, 3vw, 2.25rem);
+
+.rz-page {
+  font-size: $rz-fs-body;
+  line-height: 1.55;
+  color: $r-foreground;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rz-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid $r-border;
+
+  h1 {
+    font-size: $rz-fs-h1;
+    font-weight: 700;
+    color: $r-foreground;
+    margin: 0;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+  }
+
+  p {
+    font-size: $rz-fs-lead;
+    color: $r-muted-fg;
+    margin: 0.5rem 0 0;
+    max-width: 44rem;
+    line-height: 1.5;
+  }
+}
+
+.rz-search {
+  position: relative;
+  margin-bottom: 1.25rem;
+  max-width: 26rem;
+
+  .rz-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $r-muted-fg;
+    pointer-events: none;
+    font-size: 1.0625rem;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.75rem;
+    border: 1px solid $r-border;
+    border-radius: $rz-radius-sm;
+    font-size: $rz-fs-md;
+    background: $r-card;
+    outline: none;
+    box-shadow: $rz-shadow-sm;
+    transition: border-color 0.2s, box-shadow 0.2s;
+
+    &::placeholder {
+      color: #94a3b8;
+    }
+
+    &:focus {
+      border-color: rgba($r-primary, 0.45);
+      box-shadow: 0 0 0 4px rgba($r-primary, 0.12);
+    }
+  }
+}
+
+.rz-grid-gap-3 {
+  display: grid;
+  gap: 1rem;
+}
+
+.rz-grid-gap-4 {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.rz-grid-gap-6 {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.rz-row-card {
+  padding: 1.125rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+  background: $r-card;
+  border: 1px solid $r-border;
+  border-radius: $rz-radius;
+  box-shadow: $rz-shadow-sm;
+  transition: box-shadow 0.22s ease, border-color 0.2s ease, transform 0.18s ease;
+
+  &:hover {
+    box-shadow: $rz-shadow-md;
+    border-color: rgba($r-primary, 0.12);
+    transform: translateY(-1px);
+  }
+}
+
+.rz-avatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: linear-gradient(145deg, rgba($r-primary, 0.14), rgba($r-primary-light, 0.08));
+  color: $r-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  i {
+    font-size: 1.125rem;
+  }
+
+  &--square {
+    border-radius: $rz-radius-sm;
+  }
+}
+
+.rz-flex-1-min {
+  flex: 1;
+  min-width: 0;
+}
+
+.rz-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.rz-font-medium {
+  font-weight: 600;
+  font-size: $rz-fs-md;
+  color: $r-foreground;
+  letter-spacing: -0.02em;
+}
+
+.rz-badge-muted {
+  font-size: $rz-fs-sm;
+  line-height: 1.3;
+  color: $r-muted-fg;
+  background: $r-muted;
+  padding: 0.2rem 0.65rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.rz-text-sm-muted {
+  font-size: $rz-fs-sm;
+  color: $r-muted-fg;
+  margin-top: 0.25rem;
+  line-height: 1.5;
+}
+
+.rz-text-xs-muted {
+  font-size: $rz-fs-sm;
+  color: $r-muted-fg;
+  font-weight: 500;
+  max-width: 10rem;
+  text-align: right;
+  line-height: 1.35;
+}
+
+.rz-row-aside {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// —— Rendez-vous ——
+.rz-rdv-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.rz-rdv-day-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.875rem;
+
+  i {
+    color: $r-primary;
+    font-size: 1.125rem;
+    opacity: 0.9;
+  }
+
+  h3 {
+    font-size: $rz-fs-md;
+    font-weight: 600;
+    color: $r-foreground;
+    margin: 0;
+    text-transform: capitalize;
+    letter-spacing: -0.02em;
+  }
+}
+
+.rz-rdv-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-left: 1.75rem;
+}
+
+.rz-rdv-card {
+  padding: 1.125rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+  background: $r-card;
+  border: 1px solid $r-border;
+  border-radius: $rz-radius;
+  box-shadow: $rz-shadow-sm;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: $rz-shadow-md;
+  }
+}
+
+.rz-rdv-time {
+  font-size: $rz-fs-md;
+  font-family: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
+  font-weight: 600;
+  color: $r-primary;
+  width: 3.5rem;
+  flex-shrink: 0;
+}
+
+.rz-rdv-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rz-rdv-name {
+  font-weight: 600;
+  font-size: $rz-fs-md;
+  color: $r-foreground;
+  letter-spacing: -0.02em;
+}
+
+.rz-rdv-motif {
+  font-size: $rz-fs-sm;
+  color: $r-muted-fg;
+  margin: 0.2rem 0 0;
+  line-height: 1.45;
+}
+
+.rz-status-badge {
+  font-size: $rz-fs-xs;
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  border: none;
+  background: $r-muted;
+  color: $r-muted-fg;
+  letter-spacing: 0.01em;
+
+  &--planifie {
+    background: #e8efff;
+    color: #1e40af;
+  }
+  &--confirme {
+    background: #e6f7f2;
+    color: #0f766e;
+  }
+  &--termine {
+    background: #eef2f7;
+    color: #475569;
+  }
+  &--annule {
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+}
+
+// —— Stats stockage ——
+.rz-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rz-stat-card {
+  padding: 1.35rem 1.25rem;
+  text-align: center;
+  background: linear-gradient(180deg, $r-card 0%, $r-surface 100%);
+  border: 1px solid $r-border;
+  border-radius: $rz-radius;
+  box-shadow: $rz-shadow-sm;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, $r-primary, $r-primary-light);
+    opacity: 0.85;
+  }
+
+  .rz-stat-value {
+    font-size: $rz-fs-stat;
+    font-weight: 800;
+    color: $r-foreground;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -0.03em;
+
+    &--primary {
+      color: $r-primary;
+    }
+
+    &--accent {
+      color: $r-accent;
+    }
+  }
+
+  .rz-stat-label {
+    font-size: $rz-fs-sm;
+    color: $r-muted-fg;
+    margin: 0.5rem 0 0;
+    font-weight: 600;
+  }
+}
+
+// —— Panneau bonbonne ——
+.rz-panel {
+  padding: 1.5rem;
+  background: $r-card;
+  border: 1px solid $r-border;
+  border-radius: $rz-radius;
+  box-shadow: $rz-shadow-sm;
+}
+
+.rz-bonbonne-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+
+  h3 {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: $r-foreground;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+
+  .rz-bonbonne-sub {
+    font-size: $rz-fs-sm;
+    color: $r-muted-fg;
+    margin: 0.35rem 0 0;
+    font-weight: 500;
+  }
+}
+
+.rz-ml-2 {
+  margin-left: 0.5rem;
+}
+
+.rz-canister-box {
+  border: 1px solid $r-border;
+  border-radius: $rz-radius-sm;
+  padding: 1rem;
+  margin-bottom: 0.875rem;
+  background: $r-surface;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.rz-canister-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+
+  i {
+    font-size: $rz-fs-sm;
+    color: $r-muted-fg;
+  }
+
+  .rz-canister-title {
+    font-size: $rz-fs-sm;
+    font-weight: 700;
+    color: $r-foreground;
+  }
+
+  .rz-canister-count {
+    font-size: $rz-fs-xs;
+    color: $r-muted-fg;
+    font-weight: 500;
+  }
+}
+
+.rz-tube-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rz-tube {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: $rz-radius-sm;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $rz-fs-xs;
+  font-weight: 800;
+  border: 1px solid transparent;
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &--filled {
+    background: linear-gradient(145deg, #3b82f6, #2563eb);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+
+    &:hover {
+      transform: scale(1.06);
+    }
+  }
+
+  &--empty {
+    background: rgba($r-muted, 0.85);
+    color: #94a3b8;
+    border: 1px dashed rgba(15, 23, 42, 0.15);
+  }
+}
+
+// —— Cycles PMA ——
+.rz-cycle-card {
+  padding: 1.5rem;
+  background: $r-card;
+  border: 1px solid $r-border;
+  border-radius: $rz-radius;
+  cursor: pointer;
+  box-shadow: $rz-shadow-sm;
+  transition: box-shadow 0.22s ease, border-color 0.2s ease, transform 0.18s ease;
+
+  &:hover {
+    box-shadow: $rz-shadow-hover;
+    border-color: rgba($r-primary, 0.15);
+    transform: translateY(-2px);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba($r-primary, 0.35);
+    outline-offset: 2px;
+  }
+}
+
+.rz-cycle-row {
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+}
+
+.rz-cycle-side {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.rz-cycle-step-label {
+  font-size: $rz-fs-xs;
+  font-weight: 600;
+  color: $r-muted-fg;
+  margin: 0;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rz-cycle-step-val {
+  font-weight: 800;
+  font-size: $rz-fs-md;
+  color: $r-foreground;
+  margin: 0;
+  text-align: right;
+  letter-spacing: -0.02em;
+}
+
+.rz-chevron {
+  font-size: 1rem;
+  color: $r-muted-fg;
+}
+
+.rz-proto-pill {
+  font-size: $rz-fs-xs;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+
+  &--fiv {
+    background: rgba(59, 130, 246, 0.14);
+    color: #1d4ed8;
+  }
+  &--icsi {
+    background: rgba($r-primary, 0.14);
+    color: #5b21b6;
+  }
+  &--stim {
+    background: rgba(245, 158, 11, 0.2);
+    color: #b45309;
+  }
+  &--default {
+    background: $r-muted;
+    color: $r-muted-fg;
+  }
+}
+
+.rz-progress {
+  margin-top: 1.125rem;
+  height: 0.625rem;
+  background: $r-muted;
+  border-radius: 9999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.rz-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, $r-primary, $r-primary-light);
+  border-radius: 9999px;
+  transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba($r-primary, 0.4);
+}
+
+.rz-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.375rem;
+
+  span {
+    font-size: $rz-fs-xs;
+    color: $r-muted-fg;
+    font-weight: 600;
+    max-width: 42%;
+    line-height: 1.3;
+  }
+}
+
+// —— Étiquettes ——
+.rz-filter-card {
+  padding: 1.75rem;
+  margin-bottom: 1.75rem;
+  background: $r-card;
+  border: 1px solid $r-border;
+  border-radius: $rz-radius;
+  box-shadow: $rz-shadow-sm;
+}
+
+.rz-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.125rem;
+  align-items: end;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.rz-etiq-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.125rem;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+}
+
+.rz-etiq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.rz-etiq-tile {
+  border: 1px solid $r-border;
+  border-radius: $rz-radius-sm;
+  padding: 1.125rem;
+  background: linear-gradient(180deg, $r-card 0%, $r-surface 100%);
+  box-shadow: $rz-shadow-sm;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    box-shadow: $rz-shadow-md;
+    border-color: rgba($r-primary, 0.18);
+  }
+
+  .rz-etiq-kicker {
+    font-size: $rz-fs-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: $r-muted-fg;
+    margin: 0 0 0.375rem;
+    font-weight: 700;
+  }
+
+  .rz-etiq-name {
+    font-weight: 700;
+    font-size: $rz-fs-md;
+    color: $r-foreground;
+    margin: 0;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .rz-etiq-dossier {
+    font-size: $rz-fs-sm;
+    color: $r-muted-fg;
+    margin: 0.35rem 0 0;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  .rz-etiq-sep {
+    border-top: 1px solid $r-border;
+    margin: 0.75rem 0;
+  }
+
+  .rz-etiq-foot {
+    display: flex;
+    justify-content: space-between;
+    font-size: $rz-fs-sm;
+    color: $r-muted-fg;
+    font-weight: 500;
+    gap: 0.5rem;
+  }
+
+  .rz-etiq-code {
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: $rz-fs-sm;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: $r-primary;
+    margin: 0.625rem 0 0;
+  }
+}

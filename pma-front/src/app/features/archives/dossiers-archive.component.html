@@ -1,0 +1,92 @@
+<div class="page rz-page dossiers-archive-page">
+  <div class="page-header rz-page-header">
+    <div>
+      <h1>Archives — dossiers médicaux</h1>
+      <p>
+        Consultation des dossiers patients : identité, pièces archivées (consentements, CNI, contrats) et accès au détail
+        complet pour chaque patient.
+      </p>
+    </div>
+  </div>
+
+  <div class="rz-search">
+    <i class="fas fa-search rz-search-icon"></i>
+    <input
+      type="text"
+      placeholder="Rechercher par nom, prénom ou n° dossier…"
+      [(ngModel)]="search"
+      (ngModelChange)="onSearch()"
+    />
+  </div>
+
+  @if (loading) {
+    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement des archives…</div>
+  } @else if (filtered.length === 0) {
+    <div class="empty-state">
+      <i class="fas fa-archive"></i>
+      <p>Aucun dossier ne correspond à votre recherche.</p>
+    </div>
+  } @else {
+    <p class="hint-count">{{ filtered.length }} dossier(s)</p>
+    <div class="archive-grid">
+      @for (r of filtered; track r.patient.id) {
+        <article class="archive-card" [attr.data-statut]="statutDossier(r)">
+          <div class="archive-card-head">
+            <div class="archive-avatar">
+              <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="archive-main">
+              <h2 class="archive-name">
+                @if (r.patient.typeDossier === 'spermogramme') {
+                  {{ r.patient.prenom }} {{ r.patient.nom }}
+                } @else {
+                  {{ r.patient.prenom }} {{ r.patient.nom }}
+                  @if (r.patient.femmeNom || r.patient.femmePrenom) {
+                    <span class="conj"> &amp; {{ r.patient.femmePrenom }} {{ r.patient.femmeNom }}</span>
+                  }
+                }
+              </h2>
+              <span class="archive-dossier">{{ r.patient.numDossier }}</span>
+              @if (r.patient.typeDossier === 'spermogramme') {
+                <span class="tag tag-spermo">Spermogramme</span>
+              } @else {
+                <span class="tag tag-couple">Couple</span>
+              }
+            </div>
+          </div>
+          <div class="archive-meta">
+            <div class="meta-block">
+              <span class="meta-label">Pièces archivées</span>
+              <strong>{{ r.pieceCount }}</strong>
+              <span class="meta-sub">{{ r.consentCount }} enregistrement(s) documentaire(s)</span>
+            </div>
+            @if (r.lastSignature) {
+              <div class="meta-block">
+                <span class="meta-label">Dernière signature</span>
+                <strong>{{ r.lastSignature | date: 'dd/MM/yyyy' }}</strong>
+              </div>
+            }
+            <div class="meta-block statut">
+              @switch (statutDossier(r)) {
+                @case ('complet') {
+                  <span class="pill pill-ok"><i class="fas fa-check"></i> Dossier documenté</span>
+                }
+                @case ('partiel') {
+                  <span class="pill pill-warn"><i class="fas fa-exclamation"></i> Pièces à compléter</span>
+                }
+                @case ('vide') {
+                  <span class="pill pill-empty"><i class="fas fa-inbox"></i> Aucune pièce archivée</span>
+                }
+              }
+            </div>
+          </div>
+          <div class="archive-actions">
+            <a [routerLink]="['/patients', r.patient.id]" class="btn btn-primary">
+              <i class="fas fa-file-medical"></i> Consulter le dossier &amp; documents
+            </a>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>

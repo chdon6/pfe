@@ -1,0 +1,90 @@
+@use '../../../../styles/shared';
+
+// .rz-* : src/styles/_react-mock-pages.scss (grille bonbonnes / canisters / tubes)
+
+.rz-bb-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  margin: 0 6px;
+  vertical-align: middle;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+}
+
+.rz-tube.rz-tube--accent {
+  box-shadow: 0 0 0 2px var(--tube-accent, rgba(13, 148, 136, 0.45));
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #fff;
+  border: none;
+
+  &:hover {
+    filter: brightness(1.06);
+  }
+}
+
+.placement-cryo-card {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+
+  h2 {
+    margin: 0 0 10px;
+    font-size: 1.15rem;
+    color: #1e293b;
+
+    i {
+      margin-right: 8px;
+      color: #7c3aed;
+    }
+  }
+}
+
+.placement-intro {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.placement-conseil {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f5f3ff;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #5b21b6;
+
+  i {
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+}
+
+.alert-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 0.875rem;
+}
+
+.field-hint.warn {
+  margin-top: 8px;
+  color: #b45309;
+  font-size: 0.82rem;
+}
+
+.req {
+  color: #dc2626;
+}

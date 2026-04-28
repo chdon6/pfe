@@ -1,0 +1,41 @@
+@use '../../../../styles/shared';
+
+.field-hint {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 6px 0 0;
+}
+
+.select-statut {
+  min-width: 140px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: #fff;
+}
+
+.badge-type {
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  white-space: normal;
+  max-width: 220px;
+  line-height: 1.3;
+}
+
+.cell-muted {
+  color: #6b7280;
+  font-size: 0.88rem;
+  max-width: 280px;
+}
+
+.badge-done {
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+}
+
+.empty-hint {
+  font-size: 0.88rem;
+  color: #6b7280;
+  margin-top: 8px;
+}
