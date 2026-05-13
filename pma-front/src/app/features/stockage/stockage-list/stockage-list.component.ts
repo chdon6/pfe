@@ -7,6 +7,7 @@ import { catchError } from 'rxjs/operators';
 import { StockageService } from '../../../core/services/stockage.service';
 import { PatientService } from '../../../core/services/patient.service';
 import { CyclePmaService } from '../../../core/services/cycle-pma.service';
+import { ElementBiologiqueService } from '../../../core/services/element-biologique.service';
 import { Bonbonne, Canister, CyclePma, Patient, PailleTube } from '../../../core/models';
 import {
   conseilStockagePourActe,
@@ -32,6 +33,7 @@ export class StockageListComponent implements OnInit {
   private stockageService = inject(StockageService);
   private patientService = inject(PatientService);
   private cyclePmaService = inject(CyclePmaService);
+  private elementService = inject(ElementBiologiqueService);
 
   bonbonnes: Bonbonne[] = [];
   canisters: Canister[] = [];
@@ -285,8 +287,22 @@ export class StockageListComponent implements OnInit {
 
     this.stockageService.createPailleTube(payload).subscribe({
       next: () => {
-        this.showPlacementForm = false;
-        this.loadData();
+        this.elementService.create({
+          id: 0,
+          typeElement: payload.typeContenu || 'Échantillon stocké',
+          dateCreation: new Date().toISOString(),
+          numeroTube: `P${payload.position}`,
+          codeBarre: payload.codeBarre,
+          patientId: pl.patientId
+        }).subscribe({
+          next: () => {
+            this.showPlacementForm = false;
+            this.loadData();
+          },
+          error: () => {
+            this.placementError = "Stockage enregistré, mais l'enregistrement dans Résultats d'analyse a échoué.";
+          }
+        });
       },
       error: (err: unknown) => {
         if (err instanceof HttpErrorResponse) {

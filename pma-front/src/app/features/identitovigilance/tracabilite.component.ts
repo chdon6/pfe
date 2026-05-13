@@ -1,18 +1,7 @@
-import { Component, inject, signal, computed } from '@angular/core';
-import type { AuditJournalEntry } from '../../core/models/audit-journal.model';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import type { Patient } from '../../core/models';
 import { IdentitovigilanceAuditService } from '../../core/services/identitovigilance-audit.service';
-
-/** Données de démonstration (historique fictif) — complété par le journal persistant (scans, impressions, cryo). */
-const DEMO_AUDIT: AuditJournalEntry[] = [
-  { id: 'demo-1', dateHeure: '01/04/2026 10:45:12', action: 'Congélation paillettes', couple: 'C-005 — Leroy', detail: '3 paillettes embryons → CV-01/CAN-03', operateur: 'Tech. Morel', poste: 'LABO-WS3', statut: 'OK' },
-  { id: 'demo-2', dateHeure: '01/04/2026 10:22:03', action: 'Scan identitovigilance', couple: 'C-004 — Petit', detail: 'Insémination — DISCORDANCE', operateur: 'Bio. Faure', poste: 'INSEM-WS1', statut: 'ALERTE' },
-  { id: 'demo-3', dateHeure: '01/04/2026 10:05:41', action: 'Transfert embryon', couple: 'C-003 — Moreau', detail: 'Transfert J5 — Concordance OK', operateur: 'Dr. Bernard', poste: 'TRANSF-WS1', statut: 'OK' },
-  { id: 'demo-4', dateHeure: '01/04/2026 09:32:18', action: 'Recueil sperme', couple: 'C-002 — Martin', detail: 'Étiquetage tube recueil', operateur: 'Bio. Faure', poste: 'RECUEIL-WS1', statut: 'OK' },
-  { id: 'demo-5', dateHeure: '01/04/2026 09:15:07', action: 'Ponction ovocytaire', couple: 'C-001 — Dupont', detail: 'Scan pré-ponction concordant', operateur: 'Dr. Laurent', poste: 'PONCT-WS1', statut: 'OK' },
-  { id: 'demo-6', dateHeure: '01/04/2026 08:45:33', action: 'Impression étiquettes', couple: 'C-001 — Dupont', detail: '2 bracelets, 4 tubes imprimés', operateur: 'Acc. Renaud', poste: 'ACCUEIL-WS1', statut: 'OK' },
-  { id: 'demo-7', dateHeure: '31/03/2026 16:20:55', action: 'Décongélation paillettes', couple: 'C-003 — Moreau', detail: '2 paillettes embryons → CV-04/CAN-12', operateur: 'Bio. Faure', poste: 'LABO-WS2', statut: 'OK' },
-  { id: 'demo-8', dateHeure: '31/03/2026 14:10:22', action: 'Mise en culture', couple: 'C-001 — Dupont', detail: '6 ovocytes en culture J0', operateur: 'Bio. Faure', poste: 'LABO-WS1', statut: 'OK' },
-];
+import { PatientService } from '../../core/services/patient.service';
 
 @Component({
   standalone: true,
@@ -50,11 +39,18 @@ const DEMO_AUDIT: AuditJournalEntry[] = [
               <option value="Décongélation paillettes">Décongélation paillettes</option>
               <option value="Mise en culture">Mise en culture</option>
             </select>
+            <select class="select-filter" (change)="onPatientFilter($event)">
+              <option value="">Tous les patients</option>
+              @for (p of patients(); track p.id) {
+                <option [value]="p.id">{{ p.numDossier }} — {{ p.prenom }} {{ p.nom }}</option>
+              }
+            </select>
           </div>
           <button class="btn-outline" (click)="exporter()">
             <i class="fas fa-download"></i> Exporter
           </button>
         </div>
+        <p class="subtitle">Affichage limité à {{ tracabiliteLimit }} lignes les plus récentes.</p>
 
         <table class="data-table">
           <thead>
@@ -150,26 +146,68 @@ const DEMO_AUDIT: AuditJournalEntry[] = [
     .badge.alerte { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
   `]
 })
-export class TracabiliteComponent {
+export class TracabiliteComponent implements OnInit {
   private audit = inject(IdentitovigilanceAuditService);
+  private patientService = inject(PatientService);
+
   private searchTerm = signal('');
   private actionFilter = signal('');
+  private patientFilter = signal('');
+  patients = signal<Patient[]>([]);
+  readonly tracabiliteLimit = 150;
 
-  /** Journal persistant (localStorage) + jeu de démo. */
-  private allEntries = computed(() => [...this.audit.entries(), ...DEMO_AUDIT]);
+  private allEntries = computed(() => this.audit.entries());
 
-  filtered = computed(() => {
+  private filteredAll = computed(() => {
     let data = this.allEntries();
     const search = this.searchTerm().toLowerCase();
     const action = this.actionFilter();
-    if (search) data = data.filter(e => JSON.stringify(e).toLowerCase().includes(search));
+    const patientId = this.patientFilter();
+    const knownDossiers = new Set(
+      this.patients()
+        .map((p) => p.numDossier?.trim().toUpperCase())
+        .filter((d): d is string => !!d)
+    );
+
+    // N'afficher que les lignes ayant un numDossier explicite et connu.
+    data = data.filter((e) => {
+      const dossier = (e.numDossier ?? '').trim().toUpperCase();
+      return dossier.length > 0 && knownDossiers.has(dossier);
+    });
+
+    if (search) data = data.filter((e) => JSON.stringify(e).toLowerCase().includes(search));
+    if (patientId) {
+      const patient = this.patients().find((p) => p.id === Number(patientId));
+      if (patient) {
+        const dossier = patient.numDossier.trim().toUpperCase();
+        data = data.filter((e) => (e.numDossier ?? '').trim().toUpperCase() === dossier);
+      }
+    }
     if (action === '__cryo__') {
-      data = data.filter(e => e.action.startsWith('Cryoconservation'));
+      data = data.filter((e) => e.action.startsWith('Cryoconservation'));
     } else if (action) {
-      data = data.filter(e => e.action === action);
+      data = data.filter((e) => e.action === action);
     }
     return data;
   });
+
+  filtered = computed(() => this.filteredAll().slice(0, this.tracabiliteLimit));
+
+  ngOnInit(): void {
+    this.patientService.getAll().subscribe({
+      next: (list) => {
+        this.patients.set(list);
+        const dossiers = list
+          .map((p) => p.numDossier?.trim())
+          .filter((d): d is string => !!d);
+        this.audit.retainEntriesLinkedToDossiers(dossiers);
+      },
+      error: () => {
+        this.patients.set([]);
+        this.audit.retainEntriesLinkedToDossiers([]);
+      },
+    });
+  }
 
   onSearch(ev: Event) {
     this.searchTerm.set((ev.target as HTMLInputElement).value);
@@ -177,6 +215,10 @@ export class TracabiliteComponent {
 
   onActionFilter(ev: Event) {
     this.actionFilter.set((ev.target as HTMLSelectElement).value);
+  }
+
+  onPatientFilter(ev: Event) {
+    this.patientFilter.set((ev.target as HTMLSelectElement).value);
   }
 
   toggleFilter() {}
@@ -187,7 +229,7 @@ export class TracabiliteComponent {
     const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
     const lines = [
       header.join(';'),
-      ...rows.map(e =>
+      ...rows.map((e) =>
         [e.dateHeure, e.action, e.couple, e.detail, e.operateur, e.poste, e.statut].map(esc).join(';')
       ),
     ];

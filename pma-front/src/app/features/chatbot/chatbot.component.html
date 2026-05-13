@@ -1,0 +1,99 @@
+<div class="page chatbot-page">
+  <div class="page-header chatbot-header">
+    <div>
+      <h1><i class="fas fa-robot"></i> Assistant PMA</h1>
+      <p class="subtitle">
+        Chatbot intelligent — posez vos questions sur les dossiers, cycles et protocoles PMA
+      </p>
+    </div>
+    <div class="header-actions">
+      <span
+        class="status-badge"
+        [class.ok]="engineStatus() === 'ok'"
+        [class.error]="engineStatus() === 'error'"
+        [class.checking]="engineStatus() === 'checking'"
+      >
+        <i
+          [class]="
+            engineStatus() === 'ok'
+              ? 'fas fa-circle'
+              : engineStatus() === 'checking'
+                ? 'fas fa-spinner fa-spin'
+                : 'fas fa-exclamation-triangle'
+          "
+        ></i>
+        {{
+          engineStatus() === 'ok'
+            ? 'En ligne'
+            : engineStatus() === 'checking'
+              ? 'Connexion…'
+              : 'Hors ligne'
+        }}
+      </span>
+      <button class="btn-clear" (click)="clearHistory()" title="Effacer la conversation">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <div class="messages-area">
+      @for (msg of messages(); track $index) {
+        <div class="message" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'bot'">
+          <div class="msg-avatar">
+            @if (msg.role === 'bot') {
+              <i class="fas fa-robot"></i>
+            } @else {
+              <i class="fas fa-user"></i>
+            }
+          </div>
+          <div class="msg-bubble">
+            <div class="msg-text">{{ msg.text }}</div>
+            @if (msg.sources && msg.sources.length > 0) {
+              <div class="msg-sources">
+                <span class="sources-label"><i class="fas fa-book-open"></i> Sources</span>
+                @for (src of msg.sources; track $index) {
+                  <div class="source-chip">{{ src.content | slice:0:150 }}{{ src.content.length > 150 ? '…' : '' }}</div>
+                }
+              </div>
+            }
+            <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
+          </div>
+        </div>
+      }
+
+      @if (loading()) {
+        <div class="message bot">
+          <div class="msg-avatar"><i class="fas fa-robot"></i></div>
+          <div class="msg-bubble typing">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+        </div>
+      }
+      <div #messagesEnd></div>
+    </div>
+
+    <div class="input-bar">
+      <input
+        type="text"
+        [value]="userInput()"
+        (input)="userInput.set($any($event.target).value)"
+        (keydown.enter)="send()"
+        placeholder="Écrivez votre question…"
+        [disabled]="loading()"
+        autocomplete="off"
+      />
+      <button
+        class="btn-send"
+        [disabled]="loading() || !userInput().trim()"
+        (click)="send()"
+      >
+        @if (loading()) {
+          <i class="fas fa-spinner fa-spin"></i>
+        } @else {
+          <i class="fas fa-paper-plane"></i>
+        }
+      </button>
+    </div>
+  </div>
+</div>

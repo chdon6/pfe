@@ -8,6 +8,7 @@ using PMA.Api.Data;
 using PMA.Api.Entites;
 using PMA.Api.Interfaces;
 using PMA.Api.Repositories;
+using PMA.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,8 @@ else
     builder.Services.AddDbContext<PmaDbContext>(o => o.UseOracle(conn));
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
+builder.Services.AddHttpClient();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "PMA_Development_Secret_Key_Min_32_Chars!!";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -61,7 +64,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddCors(o =>
 {
     o.AddDefaultPolicy(p => p
-        .WithOrigins("http://localhost:4200")
+        .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
         .AllowAnyHeader()
         .AllowAnyMethod());
 });
@@ -84,8 +87,9 @@ else if (app.Environment.IsDevelopment())
     {
         if (await db.Database.CanConnectAsync())
         {
+            await db.Database.MigrateAsync();
             DbSeeder.SeedDevelopmentData(db);
-            logger.LogInformation("Seed développement appliqué (profils + utilisateur admin si absent).");
+            logger.LogInformation("Migrations EF appliquées et seed développement exécutés.");
         }
     }
     catch (Exception ex)

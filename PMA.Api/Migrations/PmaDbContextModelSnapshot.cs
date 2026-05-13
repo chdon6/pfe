@@ -65,6 +65,51 @@ namespace PMA.Api.Migrations
                     b.ToTable("ACTES_PMA", (string)null);
                 });
 
+            modelBuilder.Entity("PMA.Api.Entites.AlerteCryo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("ID");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Acquittee")
+                        .HasColumnType("NUMBER(1)")
+                        .HasColumnName("ACQUITTEE");
+
+                    b.Property<DateTime>("DateAlerte")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("DATEALERTE");
+
+                    b.Property<string>("Equipement")
+                        .HasMaxLength(200)
+                        .HasColumnType("NVARCHAR2(200)")
+                        .HasColumnName("EQUIPEMENT");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("NVARCHAR2(1000)")
+                        .HasColumnName("MESSAGE");
+
+                    b.Property<string>("Severite")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("NVARCHAR2(20)")
+                        .HasColumnName("SEVERITE");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("NVARCHAR2(30)")
+                        .HasColumnName("TYPE");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ALERTES_CRYO", (string)null);
+                });
+
             modelBuilder.Entity("PMA.Api.Entites.Bonbonne", b =>
                 {
                     b.Property<int>("Id")
@@ -76,11 +121,15 @@ namespace PMA.Api.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)");
+                        .HasMaxLength(50)
+                        .HasColumnType("NVARCHAR2(50)")
+                        .HasColumnName("CODE");
 
                     b.Property<string>("Couleur")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR2(2000)");
+                        .HasMaxLength(30)
+                        .HasColumnType("NVARCHAR2(30)")
+                        .HasColumnName("COULEUR");
 
                     b.Property<string>("Temperature")
                         .IsRequired()
@@ -119,6 +168,54 @@ namespace PMA.Api.Migrations
                     b.HasIndex("BonbonneId");
 
                     b.ToTable("CANISTERS", (string)null);
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.CapteurTemperature", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("ID");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BonbonneId")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("BONBONNEID");
+
+                    b.Property<DateTime>("DerniereMaj")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("DERNIEREMAJ");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("NVARCHAR2(200)")
+                        .HasColumnName("NOM");
+
+                    b.Property<double>("SeuilAlerte")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("SEUILALERTE");
+
+                    b.Property<string>("Statut")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("NVARCHAR2(20)")
+                        .HasColumnName("STATUT");
+
+                    b.Property<double>("TemperatureActuelle")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("TEMPERATUREACTUELLE");
+
+                    b.Property<double>("TemperatureCible")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("TEMPERATURECIBLE");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BonbonneId");
+
+                    b.ToTable("CAPTEURS_TEMPERATURE", (string)null);
                 });
 
             modelBuilder.Entity("PMA.Api.Entites.Consentement", b =>
@@ -315,6 +412,144 @@ namespace PMA.Api.Migrations
                     b.HasIndex("PatientId");
 
                     b.ToTable("ELEMENTS_BIOLOGIQUES", (string)null);
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.HistoriqueTemperature", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("ID");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CapteurTemperatureId")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("CAPTEURTEMPERATUREID");
+
+                    b.Property<DateTime>("DateMesure")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("DATEMESURE");
+
+                    b.Property<double>("Valeur")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("VALEUR");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CapteurTemperatureId");
+
+                    b.ToTable("HISTORIQUES_TEMPERATURE", (string)null);
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.MaintenancePreventive", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("ID");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DerniereExecution")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("DERNIEREEXECUTION");
+
+                    b.Property<string>("Equipement")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("NVARCHAR2(200)")
+                        .HasColumnName("EQUIPEMENT");
+
+                    b.Property<int>("FrequenceJours")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("FREQUENCEJOURS");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("NVARCHAR2(1000)")
+                        .HasColumnName("NOTES");
+
+                    b.Property<DateTime>("ProchaineExecution")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("PROCHAINEEXECUTION");
+
+                    b.Property<string>("Responsable")
+                        .HasMaxLength(100)
+                        .HasColumnType("NVARCHAR2(100)")
+                        .HasColumnName("RESPONSABLE");
+
+                    b.Property<string>("Statut")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("NVARCHAR2(20)")
+                        .HasColumnName("STATUT");
+
+                    b.Property<string>("TypeEquipement")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("NVARCHAR2(50)")
+                        .HasColumnName("TYPEEQUIPEMENT");
+
+                    b.Property<string>("TypeMaintenance")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("NVARCHAR2(200)")
+                        .HasColumnName("TYPEMAINTENANCE");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MAINTENANCES_PREVENTIVES", (string)null);
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.NiveauAzote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("ID");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BonbonneId")
+                        .HasColumnType("NUMBER(10)")
+                        .HasColumnName("BONBONNEID");
+
+                    b.Property<double>("CapaciteLitres")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("CAPACITELITRES");
+
+                    b.Property<DateTime>("DernierRemplissage")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("DERNIERREMPLISSAGE");
+
+                    b.Property<double>("NiveauPourcentage")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("NIVEAUPOURCENTAGE");
+
+                    b.Property<DateTime>("ProchainRemplissage")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("PROCHAINREMPLISSAGE");
+
+                    b.Property<double>("SeuilAlerte")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("SEUILALERTE");
+
+                    b.Property<string>("Statut")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("NVARCHAR2(20)")
+                        .HasColumnName("STATUT");
+
+                    b.Property<double>("VolumeLitres")
+                        .HasColumnType("BINARY_DOUBLE")
+                        .HasColumnName("VOLUMELITRES");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BonbonneId");
+
+                    b.ToTable("NIVEAUX_AZOTE", (string)null);
                 });
 
             modelBuilder.Entity("PMA.Api.Entites.PailleTube", b =>
@@ -641,6 +876,17 @@ namespace PMA.Api.Migrations
                     b.Navigation("Bonbonne");
                 });
 
+            modelBuilder.Entity("PMA.Api.Entites.CapteurTemperature", b =>
+                {
+                    b.HasOne("PMA.Api.Entites.Bonbonne", "Bonbonne")
+                        .WithMany()
+                        .HasForeignKey("BonbonneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bonbonne");
+                });
+
             modelBuilder.Entity("PMA.Api.Entites.Consentement", b =>
                 {
                     b.HasOne("PMA.Api.Entites.Patient", "Patient")
@@ -697,6 +943,28 @@ namespace PMA.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.HistoriqueTemperature", b =>
+                {
+                    b.HasOne("PMA.Api.Entites.CapteurTemperature", "CapteurTemperature")
+                        .WithMany("Historiques")
+                        .HasForeignKey("CapteurTemperatureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CapteurTemperature");
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.NiveauAzote", b =>
+                {
+                    b.HasOne("PMA.Api.Entites.Bonbonne", "Bonbonne")
+                        .WithMany()
+                        .HasForeignKey("BonbonneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bonbonne");
                 });
 
             modelBuilder.Entity("PMA.Api.Entites.PailleTube", b =>
@@ -776,6 +1044,11 @@ namespace PMA.Api.Migrations
             modelBuilder.Entity("PMA.Api.Entites.Canister", b =>
                 {
                     b.Navigation("PailleTubes");
+                });
+
+            modelBuilder.Entity("PMA.Api.Entites.CapteurTemperature", b =>
+                {
+                    b.Navigation("Historiques");
                 });
 
             modelBuilder.Entity("PMA.Api.Entites.CyclePma", b =>

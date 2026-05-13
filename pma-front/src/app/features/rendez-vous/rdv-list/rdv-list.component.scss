@@ -1,3 +1,158 @@
 @use '../../../../styles/shared';
 
 // .rz-* : src/styles/_react-mock-pages.scss
+
+.ai-tools-row {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-status {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.ai-error {
+  margin: 8px 0 0;
+  color: #b91c1c;
+  font-size: 0.82rem;
+}
+
+.ai-suggestions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-chip {
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  color: #1f2937;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.bio-indispo-panel {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.bio-indispo-panel--ok {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.bio-indispo-panel--loading,
+.bio-indispo-panel--warn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bio-indispo-panel--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.bio-indispo-panel--warn-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.bio-indispo-warn-body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+
+  > i {
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+}
+
+.bio-indispo-warn-detail {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #78350f;
+
+  code {
+    font-size: 0.8rem;
+    word-break: break-all;
+  }
+}
+
+.bio-indispo-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+
+  i {
+    color: #64748b;
+    margin-top: 3px;
+  }
+
+  strong {
+    display: block;
+    font-size: 1rem;
+  }
+}
+
+.bio-indispo-sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.bio-indispo-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.9rem;
+
+    i {
+      color: #b91c1c;
+      font-size: 0.85rem;
+    }
+  }
+}
+
+.bio-indispo-form-warn {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

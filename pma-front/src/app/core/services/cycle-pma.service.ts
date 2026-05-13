@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { DEMO_CYCLE_PMA, demoHistoriqueForCycle } from '../data/demo-cycles';
+import { demoHistoriqueForCycle } from '../data/demo-cycles';
 import { CyclePma, CycleEtapeHistorique, ResultatTestGrossesse } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -12,32 +12,12 @@ export class CyclePmaService {
 
   constructor(private http: HttpClient) {}
 
-  private mergeDemoCycles(api: CyclePma[]): CyclePma[] {
-    if (!environment.useDemoData) return api;
-    const ids = new Set(api.map((c) => c.id));
-    const extra = DEMO_CYCLE_PMA.filter((d) => !ids.has(d.id));
-    return [...api, ...extra];
-  }
-
-  private demoCycleById(id: number): CyclePma | undefined {
-    return environment.useDemoData ? DEMO_CYCLE_PMA.find((c) => c.id === id) : undefined;
-  }
-
   getAll(): Observable<CyclePma[]> {
-    return this.http.get<CyclePma[]>(this.apiUrl).pipe(
-      catchError(() => of([])),
-      map((list) => this.mergeDemoCycles(list))
-    );
+    return this.http.get<CyclePma[]>(this.apiUrl).pipe(catchError(() => of([])));
   }
 
   getById(id: number): Observable<CyclePma> {
-    return this.http.get<CyclePma>(`${this.apiUrl}/${id}`).pipe(
-      catchError((err: HttpErrorResponse) => {
-        const demo = this.demoCycleById(id);
-        if (demo && (err.status === 404 || err.status === 0)) return of(demo);
-        return throwError(() => err);
-      })
-    );
+    return this.http.get<CyclePma>(`${this.apiUrl}/${id}`);
   }
 
   create(cycle: CyclePma): Observable<number> {

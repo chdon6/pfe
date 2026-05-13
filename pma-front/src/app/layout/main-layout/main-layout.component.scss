@@ -1,18 +1,21 @@
 .app-layout {
   display: flex;
+  height: 100vh;
   min-height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
 }
 
 .main-content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: #f4f6f9;
-  min-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   justify-content: center;
+  -webkit-overflow-scrolling: touch;
 }
 
 /**

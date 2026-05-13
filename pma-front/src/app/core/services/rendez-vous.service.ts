@@ -22,6 +22,10 @@ export class RendezVousService {
     return this.http.post<number>(this.apiUrl, rdv);
   }
 
+  update(rdv: RendezVous): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/${rdv.id}`, rdv);
+  }
+
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }

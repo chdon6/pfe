@@ -1,20 +1,24 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 236px;
   min-width: 236px;
   flex-shrink: 0;
+  height: 100%;
+  max-height: 100vh;
+  align-self: stretch;
 }
 
 .sidebar {
   width: 236px;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   max-height: 100vh;
   background: linear-gradient(180deg, #1a1f36 0%, #252b48 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }

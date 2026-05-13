@@ -16,20 +16,9 @@
   <div class="alert-access-info">
     <i class="fas fa-info-circle"></i>
     <span>
-      Administrateur : <kbd>admin</kbd> / <kbd>admin123</kbd> — connexion à l’API en priorité ; si l’API est arrêtée ou
-      renvoie une erreur (compte absent en base), une session locale permet l’accès (sans enregistrement en base).
+      Tous les utilisateurs affichés et modifiés ici proviennent de la base de données via l’API.
     </span>
   </div>
-
-  @if (isDemoAdmin()) {
-    <div class="alert-demo">
-      <i class="fas fa-info-circle"></i>
-      <span>
-        Connexion hors API : affichage local uniquement. Démarrez l’API (<code>{{ apiBaseUrl }}</code>), puis reconnectez-vous avec
-        <kbd>admin</kbd> pour que création / modification / suppression soient enregistrées.
-      </span>
-    </div>
-  }
 
   @if (formError && !showForm) {
     <div class="alert-error banner-error"><i class="fas fa-exclamation-circle"></i> {{ formError }}</div>

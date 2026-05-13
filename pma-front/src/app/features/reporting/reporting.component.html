@@ -1,0 +1,186 @@
+<div class="page reporting-page">
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-chart-bar"></i> Reporting &amp; KPI</h1>
+      <p>Tableau de bord — Indicateurs clés et rapports réglementaires</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="exporterKpiCsv()">
+        <i class="fas fa-download"></i> Export KPI
+      </button>
+      <button class="btn btn-primary" (click)="imprimerTableauBord()">
+        <i class="fas fa-print"></i> Imprimer
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement des données...</div>
+  } @else {
+    <!-- KPI Cards -->
+    <section class="kpi-section">
+      <h2 class="section-title"><i class="fas fa-tachometer-alt"></i> Indicateurs clés de performance</h2>
+      <div class="kpi-grid">
+        @for (kpi of kpis(); track kpi.label) {
+          <div class="kpi-card">
+            <div class="kpi-card__accent" [style.background]="'linear-gradient(90deg, ' + kpi.color + ', ' + kpi.color + '66)'"></div>
+            <div class="kpi-card__body">
+              <div class="kpi-card__icon" [style.background]="kpi.color + '18'" [style.color]="kpi.color">
+                <i [class]="kpi.icon"></i>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">{{ kpi.label }}</span>
+                <span class="kpi-card__value" [style.color]="kpi.color">{{ kpi.value }}</span>
+                <span class="kpi-card__trend"
+                      [class.kpi-card__trend--up]="kpi.trend === 'up'"
+                      [class.kpi-card__trend--down]="kpi.trend === 'down'">
+                  @if (kpi.trend === 'up') { <i class="fas fa-arrow-up"></i> }
+                  @else if (kpi.trend === 'down') { <i class="fas fa-arrow-down"></i> }
+                  @else { <i class="fas fa-minus"></i> }
+                  {{ kpi.trendValue }}
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Occupation bonbonnes -->
+    <section class="occupation-section">
+      <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-warehouse"></i> Occupation des bonbonnes</h2>
+        <button class="btn btn-secondary btn-sm" (click)="exporterOccupationCsv()">
+          <i class="fas fa-download"></i> CSV
+        </button>
+      </div>
+
+      @if (occupationParBonbonne().length === 0) {
+        <div class="empty-state">
+          <i class="fas fa-box-open"></i>
+          <p>Aucune bonbonne enregistrée</p>
+        </div>
+      } @else {
+        <div class="occupation-grid">
+          @for (o of occupationParBonbonne(); track o.bonbonne.id) {
+            <div class="occupation-card">
+              <div class="occupation-card__header">
+                <div>
+                  <h3>{{ o.bonbonne.code || 'Bonbonne #' + o.bonbonne.id }}</h3>
+                  <span class="occupation-type">{{ o.bonbonne.typeStockage }} · {{ o.bonbonne.temperature }}</span>
+                </div>
+                <span class="occupation-pct"
+                      [class.occupation-pct--ok]="o.pct < 70"
+                      [class.occupation-pct--warning]="o.pct >= 70 && o.pct < 90"
+                      [class.occupation-pct--full]="o.pct >= 90">
+                  {{ o.pct }}%
+                </span>
+              </div>
+              <div class="occupation-bar">
+                <div class="occupation-bar__fill"
+                     [style.width]="barWidth(o.pct)"
+                     [class.occupation-bar__fill--ok]="o.pct < 70"
+                     [class.occupation-bar__fill--warning]="o.pct >= 70 && o.pct < 90"
+                     [class.occupation-bar__fill--full]="o.pct >= 90">
+                </div>
+              </div>
+              <div class="occupation-stats">
+                <span><strong>{{ o.occupied }}</strong> occupés</span>
+                <span><strong>{{ o.free }}</strong> libres</span>
+                <span><strong>{{ o.totalSlots }}</strong> total</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Répartition type contenu -->
+    <div class="two-cols">
+      <section class="card repartition-section">
+        <div class="card-header-custom">
+          <h2><i class="fas fa-chart-pie"></i> Répartition par type de contenu</h2>
+        </div>
+        <div class="repartition-body">
+          @if (repartitionTypeContenu().length === 0) {
+            <p class="empty-text">Aucun échantillon stocké</p>
+          } @else {
+            @for (r of repartitionTypeContenu(); track r.type) {
+              <div class="repartition-row">
+                <div class="repartition-label">
+                  <span class="repartition-dot" [style.background]="typeColor(r.type)"></span>
+                  <span>{{ r.type }}</span>
+                </div>
+                <div class="repartition-bar-wrap">
+                  <div class="repartition-bar" [style.width]="barWidth(r.pct)" [style.background]="typeColor(r.type)"></div>
+                </div>
+                <span class="repartition-count">{{ r.count }} <small>({{ r.pct }}%)</small></span>
+              </div>
+            }
+          }
+        </div>
+      </section>
+
+      <section class="card synthese-section">
+        <div class="card-header-custom">
+          <h2><i class="fas fa-clipboard-list"></i> Synthèse activité</h2>
+        </div>
+        <div class="synthese-body">
+          <div class="synthese-row">
+            <span class="synthese-label">Patients suivis</span>
+            <span class="synthese-value">{{ patients().length }}</span>
+          </div>
+          <div class="synthese-row">
+            <span class="synthese-label">Cycles PMA total</span>
+            <span class="synthese-value">{{ cycles().length }}</span>
+          </div>
+          <div class="synthese-row">
+            <span class="synthese-label">Cycles actifs</span>
+            <span class="synthese-value">{{ cyclesActifs() }}</span>
+          </div>
+          <div class="synthese-row">
+            <span class="synthese-label">Bonbonnes</span>
+            <span class="synthese-value">{{ bonbonnes().length }}</span>
+          </div>
+          <div class="synthese-row">
+            <span class="synthese-label">Échantillons stockés</span>
+            <span class="synthese-value">{{ pailles().length }}</span>
+          </div>
+          <div class="synthese-row">
+            <span class="synthese-label">Canisters</span>
+            <span class="synthese-value">{{ canisters().length }}</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Rapports réglementaires -->
+    <section class="rapports-section">
+      <h2 class="section-title"><i class="fas fa-file-contract"></i> Rapports réglementaires</h2>
+      <p class="rapports-desc">
+        Export des données pour les organismes de régulation (ABM, ARS). Ces rapports sont conformes aux formats exigés
+        et incluent les indicateurs obligatoires.
+      </p>
+
+      <div class="rapports-grid">
+        @for (r of rapportsReglementaires; track r.id) {
+          <div class="rapport-card">
+            <div class="rapport-icon">
+              <i [class]="r.icon"></i>
+            </div>
+            <div class="rapport-body">
+              <h3>{{ r.titre }}</h3>
+              <p>{{ r.description }}</p>
+              <div class="rapport-meta">
+                <span class="rapport-periode"><i class="fas fa-calendar"></i> {{ r.periode }}</span>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" (click)="exporterRapportReglementaire(r)">
+              <i class="fas fa-download"></i> Exporter
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+  }
+</div>

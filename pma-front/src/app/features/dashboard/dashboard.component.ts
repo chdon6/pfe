@@ -2,19 +2,13 @@ import { Component, OnInit, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin, Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 import { PatientService } from '../../core/services/patient.service';
 import { RendezVousService } from '../../core/services/rendez-vous.service';
 import { CyclePmaService } from '../../core/services/cycle-pma.service';
-import { UserService } from '../../core/services/user.service';
-import { ActePmaService } from '../../core/services/acte-pma.service';
 import { AdminSystemAuditService } from '../../core/services/admin-system-audit.service';
 import { RoleService } from '../../core/services/role.service';
-import { ActePma, RendezVous, User } from '../../core/models';
 import type { AdminSystemAuditEntry } from '../../core/models/admin-system-audit.model';
 import { downloadCsv, printHtmlDocument } from '../../core/utils/client-export';
-import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,8 +21,6 @@ export class DashboardComponent implements OnInit {
   private patientService = inject(PatientService);
   private rdvService = inject(RendezVousService);
   private cycleService = inject(CyclePmaService);
-  private userService = inject(UserService);
-  private acteService = inject(ActePmaService);
   readonly adminAudit = inject(AdminSystemAuditService);
   role = inject(RoleService);
 
@@ -38,14 +30,8 @@ export class DashboardComponent implements OnInit {
   cyclesActifs = 0;
   recentPatients: any[] = [];
   prochainRdv: any[] = [];
-
-  adminTotalPatients = 0;
-  adminTotalRdv = 0;
-  adminTotalCycles = 0;
-  adminCyclesActifs = 0;
-  adminUsers = 0;
-  adminActes = 0;
-  adminStatsLoading = true;
+  readonly recentPatientsLimit = 10;
+  readonly adminAuditLimit = 100;
 
   /** Filtres journal d’audit (admin) */
   readonly auditSearch = signal('');
@@ -92,6 +78,10 @@ export class DashboardComponent implements OnInit {
     return rows;
   });
 
+  readonly limitedAuditEntries = computed(() =>
+    this.filteredAuditEntries().slice(0, this.adminAuditLimit)
+  );
+
   resetAuditFilters(): void {
     this.auditSearch.set('');
     this.auditDateFrom.set('');
@@ -109,20 +99,8 @@ export class DashboardComponent implements OnInit {
     this.resetAuditFilters();
   }
 
-  exportAdminStatsCsv(): void {
-    const data: (string | number)[][] = [
-      ['Dossiers patients', this.adminTotalPatients],
-      ['Rendez-vous', this.adminTotalRdv],
-      ['Cycles PMA (total)', this.adminTotalCycles],
-      ['Cycles actifs', this.adminCyclesActifs],
-      ['Comptes utilisateurs', this.adminUsers],
-      ['Actes PMA prescrits', this.adminActes],
-    ];
-    downloadCsv(`pma-synthese-admin-${this.todaySlug()}.csv`, ['Indicateur', 'Valeur'], data);
-  }
-
   exportAdminAuditCsv(): void {
-    const entries = this.filteredAuditEntries();
+    const entries = this.limitedAuditEntries();
     const data = entries.map((e) => [
       e.at,
       e.action,
@@ -132,27 +110,8 @@ export class DashboardComponent implements OnInit {
     downloadCsv(`pma-journal-audit-${this.todaySlug()}.csv`, ['Date ISO', 'Action', 'Détail', 'Compte'], data);
   }
 
-  exportAdminStatsPdf(): void {
-    const body = `
-      <h1>Synthèse administrateur</h1>
-      <p>Export du ${this.fmtNow()} — application v${environment.appVersion}</p>
-      <table>
-        <thead><tr><th>Indicateur</th><th>Valeur</th></tr></thead>
-        <tbody>
-          <tr><td>Dossiers patients</td><td>${this.adminTotalPatients}</td></tr>
-          <tr><td>Rendez-vous</td><td>${this.adminTotalRdv}</td></tr>
-          <tr><td>Cycles PMA (total)</td><td>${this.adminTotalCycles}</td></tr>
-          <tr><td>Cycles actifs</td><td>${this.adminCyclesActifs}</td></tr>
-          <tr><td>Comptes utilisateurs</td><td>${this.adminUsers}</td></tr>
-          <tr><td>Actes PMA prescrits</td><td>${this.adminActes}</td></tr>
-        </tbody>
-      </table>
-    `;
-    printHtmlDocument('Synthèse PMA — administration', body);
-  }
-
   exportAdminAuditPdf(): void {
-    const rows = this.filteredAuditEntries()
+    const rows = this.limitedAuditEntries()
       .map(
         (e) =>
           `<tr><td>${this.escapeHtml(e.at)}</td><td>${this.escapeHtml(e.action)}</td><td>${this.escapeHtml(
@@ -162,7 +121,7 @@ export class DashboardComponent implements OnInit {
       .join('');
     const body = `
       <h1>Journal d’audit</h1>
-      <p>${this.filteredAuditEntries().length} ligne(s) — ${this.fmtNow()}</p>
+      <p>${this.limitedAuditEntries().length} ligne(s) (limite ${this.adminAuditLimit}) — ${this.fmtNow()}</p>
       <table>
         <thead><tr><th>Date</th><th>Action</th><th>Détail</th><th>Compte</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -193,7 +152,7 @@ export class DashboardComponent implements OnInit {
     if (r === 'Secretaire') {
       this.patientService.getAll().subscribe((patients) => {
         this.totalPatients = patients.length;
-        this.recentPatients = patients.slice(-5).reverse();
+        this.recentPatients = patients.slice(-this.recentPatientsLimit).reverse();
       });
 
       this.rdvService.getAll().subscribe((rdvs) => {
@@ -212,29 +171,5 @@ export class DashboardComponent implements OnInit {
       });
     }
 
-    if (r === 'Administrateur') {
-      this.adminStatsLoading = true;
-      const safe = <T>(obs: Observable<T>, fb: T) => obs.pipe(catchError(() => of(fb)));
-      forkJoin({
-        patients: this.patientService.getAll(),
-        rdvs: safe(this.rdvService.getAll(), [] as RendezVous[]),
-        cycles: this.cycleService.getAll(),
-        users: safe(this.userService.getAll(), [] as User[]),
-        actes: safe(this.acteService.getAll(), [] as ActePma[])
-      }).subscribe({
-        next: ({ patients, rdvs, cycles, users, actes }) => {
-          this.adminTotalPatients = patients.length;
-          this.adminTotalRdv = rdvs.length;
-          this.adminTotalCycles = cycles.length;
-          this.adminCyclesActifs = cycles.filter((c) => c.statutCycle !== 'termine').length;
-          this.adminUsers = users.length;
-          this.adminActes = actes.length;
-          this.adminStatsLoading = false;
-        },
-        error: () => {
-          this.adminStatsLoading = false;
-        }
-      });
-    }
   }
 }

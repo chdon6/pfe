@@ -897,6 +897,7 @@ export class CryoconservationComponent implements OnInit {
 
     this.audit.logCryoMouvement({
       type: this.moveType,
+      numDossier: p.numDossier,
       couple,
       paillettes: pail,
       position,

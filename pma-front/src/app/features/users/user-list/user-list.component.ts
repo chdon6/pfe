@@ -2,7 +2,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/services/auth.service';
 import { AdminSystemAuditService } from '../../../core/services/admin-system-audit.service';
 import { UserService } from '../../../core/services/user.service';
@@ -22,8 +21,6 @@ export class UserListComponent implements OnInit {
   private auth = inject(AuthService);
   private adminAudit = inject(AdminSystemAuditService);
 
-  readonly apiBaseUrl = environment.apiUrl;
-
   users: User[] = [];
   profiles: Profile[] = [];
   loading = true;
@@ -39,10 +36,6 @@ export class UserListComponent implements OnInit {
     return this.profiles.filter((p) =>
       ['Secretaire', 'Biologiste', 'Technicien'].includes(p.libelle)
     );
-  }
-
-  isDemoAdmin(): boolean {
-    return this.auth.isDemoAdminSession();
   }
 
   ngOnInit(): void {

@@ -170,6 +170,47 @@
         }
       </div>
 
+      <div class="card ai-assistant-card">
+        <h3><i class="fas fa-robot"></i> Assistant de saisie intelligente</h3>
+        <p class="entity-history-hint">Resume de dossier, reformulation de note administrative et assistance de saisie.</p>
+
+        <div class="ai-block">
+          <div class="ai-block-header">
+            <h4>Resume court du dossier</h4>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="generateAiSummary()" [disabled]="aiSummaryLoading">
+              <i class="fas fa-wand-magic-sparkles"></i> Generer
+            </button>
+          </div>
+          @if (aiSummaryLoading) {
+            <p class="empty-text"><i class="fas fa-spinner fa-spin"></i> Generation en cours...</p>
+          } @else if (aiSummary) {
+            <p class="ai-output">{{ aiSummary }}</p>
+          } @else {
+            <p class="empty-text">Aucun resume genere pour l'instant.</p>
+          }
+        </div>
+
+        <div class="ai-block">
+          <div class="ai-block-header">
+            <h4>Reformulation de note administrative</h4>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="reformulateAdminNote()" [disabled]="aiNoteLoading">
+              <i class="fas fa-pen-fancy"></i> Reformuler
+            </button>
+          </div>
+          <textarea
+            [(ngModel)]="aiNoteInput"
+            rows="3"
+            placeholder="Ex: patient absent, reprogrammer rdv semaine prochaine"
+          ></textarea>
+          @if (aiNoteLoading) {
+            <p class="empty-text"><i class="fas fa-spinner fa-spin"></i> Reformulation en cours...</p>
+          }
+          @if (aiNoteOutput) {
+            <p class="ai-output">{{ aiNoteOutput }}</p>
+          }
+        </div>
+      </div>
+
       <div class="tabs-section">
         <div class="tabs">
           <button [class.active]="activeTab === 'documents'" (click)="setTab('documents')">
@@ -180,9 +221,6 @@
           </button>
           <button [class.active]="activeTab === 'cycles'" (click)="setTab('cycles')">
             <i class="fas fa-sync-alt"></i> Cycles ({{ cycles.length }})
-          </button>
-          <button [class.active]="activeTab === 'actes'" (click)="setTab('actes')">
-            <i class="fas fa-notes-medical"></i> Actes PMA ({{ actes.length }})
           </button>
         </div>
 
@@ -286,56 +324,6 @@
             }
           }
 
-          @if (activeTab === 'actes') {
-            <div class="actes-tab-toolbar">
-              @if (canPrescrireActe && patient) {
-                <a [routerLink]="['/actes']" [queryParams]="{ patientId: patient.id }" class="btn btn-primary btn-sm">
-                  <i class="fas fa-plus"></i> Prescrire un acte pour ce patient
-                </a>
-              }
-            </div>
-            @if (actes.length === 0) {
-              <p class="empty-text">Aucun acte PMA prescrit pour ce dossier.</p>
-              @if (canPrescrireActe && patient) {
-                <p class="empty-text hint">Ex. FIV, ICSI, transfert embryonnaire — à réaliser par le biologiste.</p>
-              }
-            } @else {
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Libellé</th>
-                    <th>Statut (réalisation)</th>
-                    <th>Observations</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (a of actes; track a.id) {
-                    <tr>
-                      <td><span class="badge badge-type">{{ libelleType(a.typeActe) }}</span></td>
-                      <td class="font-medium">{{ a.libelle }}</td>
-                      <td>
-                        @if (canMettreAJourStatutActe) {
-                          <select
-                            class="select-statut"
-                            [value]="a.statutRealisation"
-                            (change)="onStatutActeChange(a, $event)"
-                          >
-                            @for (s of statutOptions; track s.code) {
-                              <option [value]="s.code">{{ s.label }}</option>
-                            }
-                          </select>
-                        } @else {
-                          <span class="badge">{{ libelleStatut(a.statutRealisation) }}</span>
-                        }
-                      </td>
-                      <td>{{ a.observation || '—' }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            }
-          }
         </div>
       </div>
     </div>

@@ -4,60 +4,7 @@
       <h1>Éléments biologiques</h1>
       <p>Gestion des échantillons et éléments biologiques</p>
     </div>
-    <button class="btn btn-primary" (click)="openNew()">
-      <i class="fas fa-plus"></i> Nouvel élément
-    </button>
   </div>
-
-  @if (showForm) {
-    <div class="card form-card">
-      <h2>Nouvel élément biologique</h2>
-      <form (ngSubmit)="save()">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Patient</label>
-            <select [(ngModel)]="newElement.patientId" name="patientId" required>
-              <option [ngValue]="0" disabled>-- Sélectionner un patient --</option>
-              @for (p of patients; track p.id) {
-                <option [ngValue]="p.id">{{ p.prenom }} {{ p.nom }}</option>
-              }
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Type d'élément</label>
-            <select [(ngModel)]="newElement.typeElement" name="typeElement" required>
-              <option value="" disabled>-- Sélectionner --</option>
-              <option value="Sperme">Sperme</option>
-              <option value="Ovocyte">Ovocyte</option>
-              <option value="Embryon">Embryon</option>
-              <option value="Tissu ovarien">Tissu ovarien</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Code-barres étiquette</label>
-            <input
-              type="text"
-              [(ngModel)]="newElement.codeBarre"
-              name="codeBarre"
-              placeholder="Unique — imprimé sur l'étiquette du contenant"
-            />
-          </div>
-          <div class="form-group">
-            <label>N° Tube</label>
-            <input type="text" [(ngModel)]="newElement.numeroTube" name="numeroTube" placeholder="Numéro du tube" />
-          </div>
-          <div class="form-group">
-            <label>Date de création</label>
-            <input type="datetime-local" [(ngModel)]="newElement.dateCreation" name="dateCreation" required />
-          </div>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" (click)="showForm = false">Annuler</button>
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
-        </div>
-      </form>
-    </div>
-  }
 
   <div class="card">
     @if (loading) {

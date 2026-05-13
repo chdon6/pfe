@@ -3,7 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CyclePmaService } from '../../../core/services/cycle-pma.service';
 import { PatientService } from '../../../core/services/patient.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -25,6 +26,7 @@ import { CyclePma, CycleEtapeHistorique, Patient, type ResultatTestGrossesse } f
 })
 export class CycleDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private cycleService = inject(CyclePmaService);
   private patientService = inject(PatientService);
   private phaseService = inject(PmaCyclePhaseService);
@@ -58,6 +60,7 @@ export class CycleDetailComponent implements OnInit {
 
   /** Case à cocher avant envoi de la signature biologiste. */
   signerCertifie = false;
+  signataireDraft = '';
   signResultMsg = '';
   signingResult = false;
 
@@ -110,6 +113,7 @@ export class CycleDetailComponent implements OnInit {
     this.resultatDraft =
       r === 'positif' || r === 'negatif' || r === 'en_attente' ? r : 'en_attente';
     this.signerCertifie = false;
+    this.signataireDraft = this.libelleSignataireDefaut();
   }
 
   dailyWeeks(): JourPhaseCalendrier[][] {
@@ -187,7 +191,11 @@ export class CycleDetailComponent implements OnInit {
     }
     this.signingResult = true;
     this.signResultMsg = '';
-    const signataire = this.libelleSignataireDefaut();
+    const signataire = (this.signataireDraft || '').trim() || this.libelleSignataireDefaut();
+    if (signataire.length < 2) {
+      this.signResultMsg = 'Nom du signataire invalide.';
+      return;
+    }
     this.cycleService.postSignatureResultatTest(this.cycle.id, signataire).subscribe({
       next: () => {
         this.signingResult = false;
@@ -201,11 +209,28 @@ export class CycleDetailComponent implements OnInit {
           this.auth.user()?.identifiant
         );
       },
-      error: () => {
+      error: (err: unknown) => {
         this.signingResult = false;
-        this.signResultMsg =
-          'Signature refusée. Vérifiez que le résultat est positif ou négatif et que l’API POST /signature-resultat-test est disponible.';
+        this.signResultMsg = this.messageErreurSignature(err);
       },
+    });
+  }
+
+  private messageErreurSignature(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      if (typeof err.error === 'string' && err.error.trim()) return err.error.trim();
+      const maybe = (err.error as { message?: string; title?: string } | null) ?? null;
+      if (maybe?.message?.trim()) return maybe.message.trim();
+      if (maybe?.title?.trim()) return maybe.title.trim();
+    }
+    return 'Signature refusée. Vérifiez que le résultat est positif ou négatif.';
+  }
+
+  deleteCycle(): void {
+    if (!this.cycle) return;
+    if (!confirm('Supprimer ce cycle ?')) return;
+    this.cycleService.delete(this.cycle.id).subscribe({
+      next: () => void this.router.navigate(['/cycles']),
     });
   }
 

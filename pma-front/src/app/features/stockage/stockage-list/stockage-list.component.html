@@ -113,12 +113,12 @@
           </div>
           <div class="form-group">
             <label>Type de contenu</label>
-            <input
-              type="text"
-              [(ngModel)]="placement.typeContenu"
-              name="plType"
-              placeholder="Ex: Sperme cryoconservé, Embryons vitrifiés…"
-            />
+            <select [(ngModel)]="placement.typeContenu" name="plType" required>
+              <option value="" disabled>-- Sélectionner le type --</option>
+              <option value="Embryon">Embryon</option>
+              <option value="Sperme">Sperme</option>
+              <option value="Ovocyte">Ovocyte</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Type de visotube</label>

@@ -336,8 +336,9 @@ export class EtiquettesComponent implements OnInit {
 
   etiquetteCode(imp: Impression): string {
     if (imp.codes?.length) return imp.codes[0] ?? '';
-    const prefix = imp.type.replace(/\s+/g, '').substring(0, 3).toUpperCase();
-    return `${prefix}-${imp.heure.replace(':', '')}-${imp.qte}`;
+    const dossierDigits = (imp.numDossier ?? '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+    const heureDigits = (imp.heure ?? '').replace(/\D/g, '').padStart(4, '0');
+    return `${String(imp.patientId).padStart(4, '0')}${dossierDigits}${heureDigits}${String(imp.qte).padStart(2, '0')}`;
   }
 
   /** Secrétaire : choix explicite du type ; au moins un patient chargé. */
@@ -386,6 +387,7 @@ export class EtiquettesComponent implements OnInit {
     this.audit.logImpressionEtiquettes({
       typeLibelle: lt.name,
       couple: patientLabel,
+      numDossier: p.numDossier,
       qte,
       codes,
     });

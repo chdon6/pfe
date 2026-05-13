@@ -58,6 +58,20 @@ export class CycleListComponent implements OnInit {
   showForm = false;
   newCycle = { phase: '', patientId: 0 };
   cycleFormError = '';
+  readonly phaseOptions: string[] = [
+    'Consultation initiale',
+    'Stimulation ovarienne',
+    'Monitoring folliculaire',
+    'Déclenchement',
+    'Ponction ovocytaire',
+    'Préparation spermatique',
+    'FIV classique',
+    'ICSI',
+    'Culture embryonnaire',
+    'Transfert embryonnaire',
+    'Soutien lutéal',
+    'Test de grossesse',
+  ];
 
   panelOpen = signal(false);
   /** Dossier médical (patient) déplié — vue biologiste */
@@ -245,6 +259,11 @@ export class CycleListComponent implements OnInit {
         'Ce patient n’a pas de rendez-vous enregistré. Planifiez d’abord un rendez-vous avant d’ouvrir un cycle PMA.';
       return;
     }
+    const phase = (this.newCycle.phase || '').trim();
+    if (!phase) {
+      this.cycleFormError = 'La phase du cycle PMA est obligatoire.';
+      return;
+    }
     const pSel = this.patients.find((x) => x.id === this.newCycle.patientId);
     if (pSel && typeActePmaEstParcoursLaboStockageSeul(pSel.typeActePma)) {
       const ok = confirm(
@@ -253,7 +272,7 @@ export class CycleListComponent implements OnInit {
       if (!ok) return;
     }
     const cycle: Record<string, unknown> = {
-      phase: this.newCycle.phase,
+      phase,
       patientId: this.newCycle.patientId,
     };
     this.cycleService.create(cycle as unknown as CyclePma).subscribe({
@@ -269,8 +288,20 @@ export class CycleListComponent implements OnInit {
 
   private messageErreurCreationCycle(err: unknown): string {
     if (err instanceof HttpErrorResponse) {
+      if (err.status >= 500) {
+        return 'Erreur serveur lors de la création du cycle. Vérifiez la phase et réessayez.';
+      }
       if (typeof err.error === 'string' && err.error.trim()) {
-        return err.error.trim();
+        const message = err.error.trim();
+        if (
+          message.includes('Exception') ||
+          message.includes('ORA-') ||
+          message.includes('at PMA.Api') ||
+          message.includes('<!DOCTYPE')
+        ) {
+          return 'Erreur serveur lors de la création du cycle. Vérifiez les champs saisis puis réessayez.';
+        }
+        return message;
       }
       if (err.error && typeof err.error === 'object') {
         const o = err.error as Record<string, unknown>;
@@ -310,7 +341,6 @@ export class CycleListComponent implements OnInit {
 
   deleteCycle(id: number, ev?: Event): void {
     ev?.stopPropagation();
-    if (this.isBiologiste()) return;
     const c = this.cycles.find((x) => x.id === id);
     if (c?.demo) return;
     if (confirm('Supprimer ce cycle ?')) {

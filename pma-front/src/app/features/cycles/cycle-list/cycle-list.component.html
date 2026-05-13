@@ -114,7 +114,12 @@
           </div>
           <div class="form-group">
             <label>Phase</label>
-            <input type="text" [(ngModel)]="newCycle.phase" name="phase" placeholder="Ex: Stimulation, Ponction..." />
+            <select [(ngModel)]="newCycle.phase" name="phase" required>
+              <option value="" disabled>-- Sélectionner une phase --</option>
+              @for (phase of phaseOptions; track phase) {
+                <option [value]="phase">{{ phase }}</option>
+              }
+            </select>
           </div>
         </div>
         <div class="form-actions">
@@ -176,6 +181,13 @@
                     <span class="step-fraction"
                       >Étape <strong>{{ stepIndex(c) }}/{{ totalSteps }}</strong></span
                     >
+                    <button
+                      type="button"
+                      class="btn-icon-card"
+                      title="Supprimer le cycle"
+                      (click)="deleteCycle(c.id, $event)">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
                   </div>
                   <p class="phase-line compact">Phase actuelle : <strong>{{ c.phase || '—' }}</strong></p>
                   <div class="mini-week">

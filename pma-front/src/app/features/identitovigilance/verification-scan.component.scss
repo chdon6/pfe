@@ -304,6 +304,31 @@
   margin: 0 auto;
 }
 
+.scan-input-group--stack {
+  max-width: 560px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.scan-input-group select {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 1.25rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1.0625rem;
+  outline: none;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.scan-input-group select:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
+}
+
 .scan-input-group input {
   flex: 1 1 220px;
   min-width: min(100%, 260px);
@@ -345,6 +370,64 @@
   opacity: 0.65;
   cursor: not-allowed;
   transform: none;
+}
+
+.camera-row {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-camera {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0.75rem 1.35rem;
+  min-height: 48px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  border: 2px solid #0d9488;
+  color: #0f766e;
+  background: #f0fdfa;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-camera:hover:not(:disabled) {
+  background: #ccfbf1;
+  color: #0f172a;
+}
+
+.btn-camera:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.camera-mount {
+  width: 100%;
+  max-width: 400px;
+  margin: 1.25rem auto 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(13, 148, 136, 0.35);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  min-height: 200px;
+  background: #0f172a;
+}
+
+.camera-mount ::ng-deep video {
+  display: block;
+  width: 100% !important;
+  border-radius: 12px;
+}
+
+.camera-hint {
+  margin: 0.75rem auto 0 !important;
+  font-size: 0.9375rem !important;
+  color: #64748b !important;
+  max-width: 28rem !important;
 }
 
 .result-icon {
@@ -427,4 +510,14 @@
 
 .pt {
   margin-top: 14px !important;
+}
+
+.no-codes-hint {
+  margin-top: 1rem;
+  font-size: 0.9375rem;
+  color: #64748b;
+  i {
+    margin-right: 6px;
+    color: #94a3b8;
+  }
 }

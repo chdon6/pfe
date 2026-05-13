@@ -44,19 +44,18 @@ function roleFromUser(u: { profileLibelle?: string | null; profileId?: number } 
 }
 
 export const ALL_MENU_ITEMS: MenuItem[] = [
-  { label: 'Tableau de bord', icon: 'fas fa-tachometer-alt', route: '/dashboard', roles: ALL_ROLES },
   { label: 'Patients', icon: 'fas fa-user-injured', route: '/patients', roles: ['Secretaire'] },
   { label: 'Rendez-vous', icon: 'fas fa-calendar-alt', route: '/rendez-vous', roles: ['Secretaire'] },
   { label: 'Archives dossiers', icon: 'fas fa-archive', route: '/archives-dossiers', roles: ['Secretaire'] },
   { label: 'Étiquettes', icon: 'fas fa-tags', route: '/identitovigilance/etiquettes', roles: ['Secretaire', 'Biologiste'] },
   { label: 'Vérification scan', icon: 'fas fa-barcode', route: '/identitovigilance/scan', roles: ['Biologiste'] },
+  { label: 'Traçabilité', icon: 'fas fa-stream', route: '/identitovigilance/tracabilite', roles: ['Biologiste'] },
   {
-    label: 'Traçabilité — historique des entrées / sorties',
-    icon: 'fas fa-stream',
-    route: '/identitovigilance/tracabilite',
+    label: 'Gestion cryogénique — températures, azote, maintenances',
+    icon: 'fas fa-temperature-low',
+    route: '/gestion-cryogenique',
     roles: ['Technicien'],
   },
-  { label: 'Traçabilité', icon: 'fas fa-stream', route: '/identitovigilance/tracabilite', roles: ['Biologiste'] },
   {
     label: 'Cryoconservation — localisation des échantillons (cuve, canister, position)',
     icon: 'fas fa-snowflake',
@@ -71,27 +70,27 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
     roles: ['Biologiste'],
   },
   {
+    label: 'Agenda & disponibilités',
+    icon: 'fas fa-calendar-check',
+    route: '/agenda-biologiste',
+    roles: ['Biologiste'],
+  },
+  {
     label: 'Stockage cryogénique — occupation des bombonnes',
     icon: 'fas fa-warehouse',
     route: '/stockage',
     roles: ['Technicien'],
   },
   {
-    label: 'Résultats d’analyses — saisie sous supervision',
-    icon: 'fas fa-vials',
-    route: '/elements-bio',
+    label: 'Reporting — KPI et rapports réglementaires',
+    icon: 'fas fa-chart-bar',
+    route: '/reporting',
     roles: ['Technicien'],
   },
   {
     label: 'Administration utilisateurs',
     icon: 'fas fa-user-shield',
     route: '/administration/utilisateurs',
-    roles: ['Administrateur'],
-  },
-  {
-    label: 'Santé de l’application',
-    icon: 'fas fa-heartbeat',
-    route: '/administration/sante',
     roles: ['Administrateur'],
   },
 ];

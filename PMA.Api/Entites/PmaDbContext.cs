@@ -22,6 +22,11 @@ public class PmaDbContext : DbContext
     public DbSet<Canister> Canisters => Set<Canister>();
     public DbSet<Bonbonne> Bonbonnes => Set<Bonbonne>();
     public DbSet<CycleEtapeHistorique> CycleEtapesHistorique => Set<CycleEtapeHistorique>();
+    public DbSet<CapteurTemperature> CapteursTemperature => Set<CapteurTemperature>();
+    public DbSet<HistoriqueTemperature> HistoriquesTemperature => Set<HistoriqueTemperature>();
+    public DbSet<NiveauAzote> NiveauxAzote => Set<NiveauAzote>();
+    public DbSet<MaintenancePreventive> MaintenancesPreventives => Set<MaintenancePreventive>();
+    public DbSet<AlerteCryo> AlertesCryo => Set<AlerteCryo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -266,8 +271,99 @@ public class PmaDbContext : DbContext
             entity.ToTable("BONBONNES");
             entity.HasKey(b => b.Id);
             entity.Property(b => b.Id).HasColumnName("ID");
+            entity.Property(b => b.Code).HasColumnName("CODE").HasMaxLength(50);
+            entity.Property(b => b.Couleur).HasColumnName("COULEUR").HasMaxLength(30);
             entity.Property(b => b.TypeStockage).HasColumnName("TYPESTOCKAGE");
             entity.Property(b => b.Temperature).HasColumnName("TEMPERATURE");
         });
+
+        modelBuilder.Entity<CapteurTemperature>(entity =>
+        {
+            entity.ToTable("CAPTEURS_TEMPERATURE");
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Id).HasColumnName("ID");
+            entity.Property(c => c.Nom).HasColumnName("NOM").HasMaxLength(200).IsRequired();
+            entity.Property(c => c.BonbonneId).HasColumnName("BONBONNEID");
+            entity.Property(c => c.TemperatureActuelle).HasColumnName("TEMPERATUREACTUELLE");
+            entity.Property(c => c.TemperatureCible).HasColumnName("TEMPERATURECIBLE");
+            entity.Property(c => c.SeuilAlerte).HasColumnName("SEUILALERTE");
+            entity.Property(c => c.Statut).HasColumnName("STATUT").HasMaxLength(20).IsRequired();
+            entity.Property(c => c.DerniereMaj).HasColumnName("DERNIEREMAJ");
+
+            entity.HasOne(c => c.Bonbonne)
+                .WithMany()
+                .HasForeignKey(c => c.BonbonneId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<HistoriqueTemperature>(entity =>
+        {
+            entity.ToTable("HISTORIQUES_TEMPERATURE");
+            entity.HasKey(h => h.Id);
+            entity.Property(h => h.Id).HasColumnName("ID");
+            entity.Property(h => h.CapteurTemperatureId).HasColumnName("CAPTEURTEMPERATUREID");
+            entity.Property(h => h.Valeur).HasColumnName("VALEUR");
+            entity.Property(h => h.DateMesure).HasColumnName("DATEMESURE");
+
+            entity.HasOne(h => h.CapteurTemperature)
+                .WithMany(c => c.Historiques)
+                .HasForeignKey(h => h.CapteurTemperatureId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NiveauAzote>(entity =>
+        {
+            entity.ToTable("NIVEAUX_AZOTE");
+            entity.HasKey(n => n.Id);
+            entity.Property(n => n.Id).HasColumnName("ID");
+            entity.Property(n => n.BonbonneId).HasColumnName("BONBONNEID");
+            entity.Property(n => n.NiveauPourcentage).HasColumnName("NIVEAUPOURCENTAGE");
+            entity.Property(n => n.VolumeLitres).HasColumnName("VOLUMELITRES");
+            entity.Property(n => n.CapaciteLitres).HasColumnName("CAPACITELITRES");
+            entity.Property(n => n.SeuilAlerte).HasColumnName("SEUILALERTE");
+            entity.Property(n => n.DernierRemplissage).HasColumnName("DERNIERREMPLISSAGE");
+            entity.Property(n => n.ProchainRemplissage).HasColumnName("PROCHAINREMPLISSAGE");
+            entity.Property(n => n.Statut).HasColumnName("STATUT").HasMaxLength(20).IsRequired();
+
+            entity.HasOne(n => n.Bonbonne)
+                .WithMany()
+                .HasForeignKey(n => n.BonbonneId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MaintenancePreventive>(entity =>
+        {
+            entity.ToTable("MAINTENANCES_PREVENTIVES");
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Id).HasColumnName("ID");
+            entity.Property(m => m.Equipement).HasColumnName("EQUIPEMENT").HasMaxLength(200).IsRequired();
+            entity.Property(m => m.TypeEquipement).HasColumnName("TYPEEQUIPEMENT").HasMaxLength(50).IsRequired();
+            entity.Property(m => m.TypeMaintenance).HasColumnName("TYPEMAINTENANCE").HasMaxLength(200).IsRequired();
+            entity.Property(m => m.DerniereExecution).HasColumnName("DERNIEREEXECUTION");
+            entity.Property(m => m.ProchaineExecution).HasColumnName("PROCHAINEEXECUTION");
+            entity.Property(m => m.FrequenceJours).HasColumnName("FREQUENCEJOURS");
+            entity.Property(m => m.Responsable).HasColumnName("RESPONSABLE").HasMaxLength(100).IsRequired(false);
+            entity.Property(m => m.Statut).HasColumnName("STATUT").HasMaxLength(20).IsRequired();
+            entity.Property(m => m.Notes).HasColumnName("NOTES").HasMaxLength(1000).IsRequired(false);
+        });
+
+        modelBuilder.Entity<AlerteCryo>(entity =>
+        {
+            entity.ToTable("ALERTES_CRYO");
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Id).HasColumnName("ID");
+            entity.Property(a => a.DateAlerte).HasColumnName("DATEALERTE");
+            entity.Property(a => a.Type).HasColumnName("TYPE").HasMaxLength(30).IsRequired();
+            entity.Property(a => a.Severite).HasColumnName("SEVERITE").HasMaxLength(20).IsRequired();
+            entity.Property(a => a.Message).HasColumnName("MESSAGE").HasMaxLength(1000).IsRequired();
+            entity.Property(a => a.Equipement).HasColumnName("EQUIPEMENT").HasMaxLength(200).IsRequired(false);
+            entity.Property(a => a.Acquittee).HasColumnName("ACQUITTEE")
+                .HasColumnType("NUMBER(1)")
+                .HasConversion(
+                    v => v ? 1 : 0,
+                    v => v == 1
+                );
+        });
+
     }
 }

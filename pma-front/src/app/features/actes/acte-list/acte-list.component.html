@@ -4,11 +4,6 @@
       <h1>Actes PMA</h1>
       <p>Types d’actes prescrits par patient et suivi de leur réalisation (FIV, ICSI, etc.)</p>
     </div>
-    @if (canPrescrire) {
-      <button type="button" class="btn btn-primary" (click)="openNew()">
-        <i class="fas fa-plus"></i> Prescrire un acte
-      </button>
-    }
   </div>
 
   @if (showForm && canPrescrire) {

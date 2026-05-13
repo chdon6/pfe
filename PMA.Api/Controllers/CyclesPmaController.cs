@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PMA.Api.Entites;
 using PMA.Api.Interfaces;
 
@@ -27,6 +28,8 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
     {
         if (dto.PatientId <= 0)
             return BadRequest("Identifiant patient invalide.");
+        if (string.IsNullOrWhiteSpace(dto.Phase))
+            return BadRequest("La phase du cycle PMA est obligatoire. Sélectionnez une phase avant l'enregistrement.");
         var patient = await uow.Patients.GetByIdAsync(dto.PatientId);
         if (patient is null)
             return BadRequest("Patient introuvable. Impossible de créer un cycle PMA.");
@@ -40,7 +43,7 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
         var now = DateTime.UtcNow;
         var e = new CyclePma
         {
-            Phase = dto.Phase ?? "",
+            Phase = dto.Phase.Trim(),
             PatientId = dto.PatientId,
             ProtocoleId = dto.ProtocoleId,
             StatutCycle = "brouillon",
@@ -49,8 +52,23 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
             DerniereMiseAJour = now
         };
         await uow.CyclesPma.AddAsync(e);
-        await uow.SaveChangesAsync();
+        try
+        {
+            await uow.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsPhaseNotNullViolation(ex))
+        {
+            return BadRequest("La phase du cycle PMA est obligatoire. Merci de choisir une phase valide.");
+        }
         return CreatedAtAction(nameof(GetById), new { id = e.Id }, new { id = e.Id });
+    }
+
+    private static bool IsPhaseNotNullViolation(DbUpdateException ex)
+    {
+        var msg = ex.InnerException?.Message ?? ex.Message;
+        return msg.Contains("ORA-01400", StringComparison.OrdinalIgnoreCase)
+               && msg.Contains("CYCLES_PMA", StringComparison.OrdinalIgnoreCase)
+               && msg.Contains("PHASE", StringComparison.OrdinalIgnoreCase);
     }
 
     [HttpDelete("{id:int}")]

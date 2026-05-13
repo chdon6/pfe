@@ -18,6 +18,11 @@ public interface IUnitOfWork : IDisposable
     IRepository<Canister> Canisters { get; }
     IRepository<Bonbonne> Bonbonnes { get; }
     IRepository<CycleEtapeHistorique> CycleEtapesHistorique { get; }
+    IRepository<CapteurTemperature> CapteursTemperature { get; }
+    IRepository<HistoriqueTemperature> HistoriquesTemperature { get; }
+    IRepository<NiveauAzote> NiveauxAzote { get; }
+    IRepository<MaintenancePreventive> MaintenancesPreventives { get; }
+    IRepository<AlerteCryo> AlertesCryo { get; }
 
     Task<int> SaveChangesAsync();
 }

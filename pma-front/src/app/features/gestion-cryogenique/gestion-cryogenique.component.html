@@ -1,0 +1,423 @@
+<div class="page cryo-page">
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-temperature-low"></i> Gestion Cryogénique</h1>
+      <p>Surveillance temps réel — Températures, azote et maintenances</p>
+    </div>
+    <div class="header-badges">
+      @if (capteursEnAlerte() > 0) {
+        <span class="header-alert header-alert--critical">
+          <i class="fas fa-exclamation-triangle"></i> {{ capteursEnAlerte() }} capteur(s) en alerte
+        </span>
+      }
+      @if (niveauxBas() > 0) {
+        <span class="header-alert header-alert--warning">
+          <i class="fas fa-tint"></i> {{ niveauxBas() }} niveau(x) bas
+        </span>
+      }
+      @if (maintenancesEnRetard() > 0) {
+        <span class="header-alert header-alert--warning">
+          <i class="fas fa-wrench"></i> {{ maintenancesEnRetard() }} maintenance(s) en retard
+        </span>
+      }
+    </div>
+  </div>
+
+  <!-- KPI en-tête -->
+  <div class="cryo-kpi-strip">
+    <div class="cryo-kpi" [class.cryo-kpi--ok]="capteursEnAlerte() === 0"
+         [class.cryo-kpi--alert]="capteursEnAlerte() > 0">
+      <i class="fas fa-thermometer-half"></i>
+      <div>
+        <span class="cryo-kpi__value">{{ capteurs().length - capteursEnAlerte() }}/{{ capteurs().length }}</span>
+        <span class="cryo-kpi__label">Capteurs OK</span>
+      </div>
+    </div>
+    <div class="cryo-kpi" [class.cryo-kpi--ok]="niveauxBas() === 0"
+         [class.cryo-kpi--alert]="niveauxBas() > 0">
+      <i class="fas fa-tint"></i>
+      <div>
+        <span class="cryo-kpi__value">{{ niveauxAzote().length - niveauxBas() }}/{{ niveauxAzote().length }}</span>
+        <span class="cryo-kpi__label">Niveaux N₂ OK</span>
+      </div>
+    </div>
+    <div class="cryo-kpi" [class.cryo-kpi--ok]="maintenancesEnRetard() === 0"
+         [class.cryo-kpi--alert]="maintenancesEnRetard() > 0">
+      <i class="fas fa-tools"></i>
+      <div>
+        <span class="cryo-kpi__value">{{ maintenancesEnRetard() }}</span>
+        <span class="cryo-kpi__label">Retards maintenance</span>
+      </div>
+    </div>
+    <div class="cryo-kpi" [class.cryo-kpi--ok]="alertesNonAcquittees() === 0"
+         [class.cryo-kpi--alert]="alertesNonAcquittees() > 0">
+      <i class="fas fa-bell"></i>
+      <div>
+        <span class="cryo-kpi__value">{{ alertesNonAcquittees() }}</span>
+        <span class="cryo-kpi__label">Alertes actives</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onglets -->
+  <div class="cryo-tabs">
+    <button [class.active]="ongletActif() === 'temperatures'" (click)="changerOnglet('temperatures')">
+      <i class="fas fa-thermometer-half"></i> Températures
+    </button>
+    <button [class.active]="ongletActif() === 'azote'" (click)="changerOnglet('azote')">
+      <i class="fas fa-tint"></i> Niveaux Azote
+    </button>
+    <button [class.active]="ongletActif() === 'maintenance'" (click)="changerOnglet('maintenance')">
+      <i class="fas fa-wrench"></i> Maintenances
+      @if (maintenancesEnRetard() > 0) {
+        <span class="tab-badge">{{ maintenancesEnRetard() }}</span>
+      }
+    </button>
+    <button [class.active]="ongletActif() === 'alertes'" (click)="changerOnglet('alertes')">
+      <i class="fas fa-bell"></i> Alertes
+      @if (alertesNonAcquittees() > 0) {
+        <span class="tab-badge tab-badge--danger">{{ alertesNonAcquittees() }}</span>
+      }
+    </button>
+  </div>
+
+  <!-- ONGLET TEMPÉRATURES -->
+  @if (ongletActif() === 'temperatures') {
+    <div class="cryo-section">
+      <div class="section-toolbar">
+        <h2><i class="fas fa-chart-line"></i> Suivi temps réel des températures</h2>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm" (click)="exporterTemperatures()">
+            <i class="fas fa-download"></i> CSV
+          </button>
+          <button class="btn btn-secondary btn-sm" (click)="imprimerRapportTemperatures()">
+            <i class="fas fa-print"></i> Imprimer
+          </button>
+        </div>
+      </div>
+      <p class="section-hint">
+        <i class="fas fa-sync-alt fa-spin"></i> Mise à jour automatique toutes les 5 secondes
+      </p>
+
+      <div class="temp-cards">
+        @for (c of capteurs(); track c.id) {
+          <div class="temp-card" [class.temp-card--warning]="c.statut === 'warning'"
+               [class.temp-card--critical]="c.statut === 'critical'">
+            <div class="temp-card__header">
+              <div class="temp-card__icon"
+                   [class.temp-card__icon--ok]="c.statut === 'normal'"
+                   [class.temp-card__icon--warning]="c.statut === 'warning'"
+                   [class.temp-card__icon--critical]="c.statut === 'critical'">
+                <i class="fas fa-thermometer-half"></i>
+              </div>
+              <div class="temp-card__info">
+                <h3>{{ c.nom }}</h3>
+                <span class="temp-card__bonbonne">{{ c.bonbonneCode }}</span>
+              </div>
+              <div class="temp-card__status">
+                <span class="status-badge"
+                      [class.status-badge--ok]="c.statut === 'normal'"
+                      [class.status-badge--warning]="c.statut === 'warning'"
+                      [class.status-badge--critical]="c.statut === 'critical'">
+                  {{ statutLabel(c.statut) }}
+                </span>
+              </div>
+            </div>
+            <div class="temp-card__body">
+              <div class="temp-display">
+                <span class="temp-value"
+                      [class.temp-value--ok]="c.statut === 'normal'"
+                      [class.temp-value--warning]="c.statut === 'warning'"
+                      [class.temp-value--critical]="c.statut === 'critical'">
+                  {{ c.temperatureActuelle }}°C
+                </span>
+                <span class="temp-target">Cible : {{ c.temperatureCible }}°C</span>
+                <span class="temp-seuil">Seuil : ±{{ c.seuilAlerte }}°C</span>
+              </div>
+              <div class="temp-sparkline">
+                <div class="sparkline-bar">
+                  @for (point of c.historique.slice(-30); track $index) {
+                    <div class="sparkline-point"
+                         [style.height.%]="((point.valeur - c.temperatureCible + c.seuilAlerte * 2) / (c.seuilAlerte * 4)) * 100"
+                         [class.sparkline-point--warning]="Math.abs(point.valeur - c.temperatureCible) > c.seuilAlerte * 0.6"
+                         [class.sparkline-point--critical]="Math.abs(point.valeur - c.temperatureCible) > c.seuilAlerte"
+                         [title]="point.valeur + '°C — ' + (point.date | date:'HH:mm:ss')">
+                    </div>
+                  }
+                </div>
+                <span class="sparkline-label">30 dernières mesures</span>
+              </div>
+            </div>
+            <div class="temp-card__footer">
+              <span><i class="fas fa-clock"></i> {{ c.derniereMaj | date:'HH:mm:ss' }}</span>
+              <span>Δ {{ (c.temperatureActuelle - c.temperatureCible) > 0 ? '+' : '' }}{{ (c.temperatureActuelle - c.temperatureCible).toFixed(1) }}°C</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ONGLET AZOTE -->
+  @if (ongletActif() === 'azote') {
+    <div class="cryo-section">
+      <div class="section-toolbar">
+        <h2><i class="fas fa-tint"></i> Surveillance des niveaux d'azote liquide</h2>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm" (click)="exporterNiveauxAzote()">
+            <i class="fas fa-download"></i> Exporter CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="azote-cards">
+        @for (n of niveauxAzote(); track n.id) {
+          @if (n.capaciteLitres > 0) {
+            <div class="azote-card" [class.azote-card--bas]="n.statut === 'bas'"
+                 [class.azote-card--critique]="n.statut === 'critique'">
+              <div class="azote-card__header">
+                <h3><i class="fas fa-snowflake"></i> {{ n.bonbonneCode }}</h3>
+                <span class="status-badge"
+                      [class.status-badge--ok]="n.statut === 'ok'"
+                      [class.status-badge--warning]="n.statut === 'bas'"
+                      [class.status-badge--critical]="n.statut === 'critique'">
+                  {{ statutLabel(n.statut) }}
+                </span>
+              </div>
+              <div class="azote-gauge">
+                <div class="gauge-container">
+                  <div class="gauge-fill"
+                       [style.height]="barreNiveau(n.niveauPourcentage)"
+                       [class.gauge-fill--ok]="n.niveauPourcentage > n.seuilAlerte"
+                       [class.gauge-fill--warning]="n.niveauPourcentage <= n.seuilAlerte && n.niveauPourcentage > 15"
+                       [class.gauge-fill--critical]="n.niveauPourcentage <= 15">
+                  </div>
+                  <span class="gauge-label">{{ n.niveauPourcentage }}%</span>
+                </div>
+                <div class="azote-details">
+                  <div class="azote-detail">
+                    <span class="detail-label">Volume actuel</span>
+                    <span class="detail-value">{{ n.volumeLitres }} L</span>
+                  </div>
+                  <div class="azote-detail">
+                    <span class="detail-label">Capacité totale</span>
+                    <span class="detail-value">{{ n.capaciteLitres }} L</span>
+                  </div>
+                  <div class="azote-detail">
+                    <span class="detail-label">Seuil d'alerte</span>
+                    <span class="detail-value">{{ n.seuilAlerte }}%</span>
+                  </div>
+                  <div class="azote-detail">
+                    <span class="detail-label">Dernier remplissage</span>
+                    <span class="detail-value">{{ n.dernierRemplissage | date:'dd/MM/yyyy' }}</span>
+                  </div>
+                  <div class="azote-detail" [class.detail--alert]="n.statut !== 'ok'">
+                    <span class="detail-label">Prochain remplissage</span>
+                    <span class="detail-value">{{ n.prochainRemplissage | date:'dd/MM/yyyy' }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ONGLET MAINTENANCE -->
+  @if (ongletActif() === 'maintenance') {
+    <div class="cryo-section">
+      <div class="section-toolbar">
+        <h2><i class="fas fa-clipboard-check"></i> Maintenances préventives</h2>
+        <div class="section-actions">
+          <button class="btn btn-primary btn-sm" (click)="ouvrirMaintenanceForm()">
+            <i class="fas fa-plus"></i> Planifier
+          </button>
+          <button class="btn btn-secondary btn-sm" (click)="exporterMaintenances()">
+            <i class="fas fa-download"></i> CSV
+          </button>
+        </div>
+      </div>
+
+      @if (showMaintenanceForm()) {
+        <div class="card form-card maintenance-form">
+          <h2>{{ maintenanceFormData.id ? 'Modifier' : 'Nouvelle' }} maintenance</h2>
+          <form (ngSubmit)="sauvegarderMaintenance()">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Équipement</label>
+                <select [(ngModel)]="maintenanceFormData.equipement" name="mEquipement" required>
+                  <option value="" disabled>-- Sélectionner --</option>
+                  @for (eq of listeEquipements(); track eq) {
+                    <option [value]="eq">{{ eq }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Type d'équipement</label>
+                <select [(ngModel)]="maintenanceFormData.typeEquipement" name="mType">
+                  <option value="bonbonne">Bonbonne / Cuve</option>
+                  <option value="capteur">Capteur température</option>
+                  <option value="systeme_alarme">Système d'alarme</option>
+                  <option value="cuve">Congélateur</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Type de maintenance</label>
+                <select [(ngModel)]="maintenanceFormData.typeMaintenance" name="mMaintType" required>
+                  <option value="" disabled>-- Sélectionner --</option>
+                  @for (t of listeTypesMaintenance; track t) {
+                    <option [value]="t">{{ t }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Fréquence (jours)</label>
+                <select [(ngModel)]="maintenanceFormData.frequenceJours" name="mFreq">
+                  @for (f of listeFrequences; track f.valeur) {
+                    <option [ngValue]="f.valeur">{{ f.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Responsable</label>
+                <select [(ngModel)]="maintenanceFormData.responsable" name="mResp">
+                  <option value="" disabled>-- Sélectionner --</option>
+                  @for (r of listeResponsables; track r) {
+                    <option [value]="r">{{ r }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Notes</label>
+                <select [(ngModel)]="maintenanceFormData.notes" name="mNotes">
+                  <option value="">Aucune</option>
+                  @for (n of listeNotes; track n) {
+                    <option [value]="n">{{ n }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" (click)="showMaintenanceForm.set(false)">Annuler</button>
+              <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+          </form>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table class="data-table maintenance-table">
+          <thead>
+            <tr>
+              <th>Équipement</th>
+              <th>Type maintenance</th>
+              <th>Dernière exécution</th>
+              <th>Prochaine</th>
+              <th>Fréquence</th>
+              <th>Responsable</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of maintenances(); track m.id) {
+              <tr [class.row-en-retard]="m.statut === 'en_retard'"
+                  [class.row-a-planifier]="m.statut === 'a_planifier'">
+                <td>
+                  <div class="equip-cell">
+                    <span class="equip-type-badge">{{ typeEquipementLabel(m.typeEquipement) }}</span>
+                    <span class="equip-name">{{ m.equipement }}</span>
+                  </div>
+                </td>
+                <td>{{ m.typeMaintenance }}</td>
+                <td>{{ m.derniereExecution | date:'dd/MM/yyyy' }}</td>
+                <td [class.td-overdue]="m.statut === 'en_retard'">
+                  {{ m.prochaineExecution | date:'dd/MM/yyyy' }}
+                </td>
+                <td>{{ m.frequenceJours }}j</td>
+                <td>{{ m.responsable }}</td>
+                <td>
+                  <span class="status-badge"
+                        [class.status-badge--ok]="m.statut === 'a_jour'"
+                        [class.status-badge--warning]="m.statut === 'a_planifier'"
+                        [class.status-badge--critical]="m.statut === 'en_retard'">
+                    {{ statutLabel(m.statut) }}
+                  </span>
+                </td>
+                <td>
+                  <div class="actions">
+                    <button class="btn-icon" title="Marquer exécutée" (click)="marquerExecutee(m.id)">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn-icon" title="Modifier" (click)="ouvrirMaintenanceForm(m)">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-danger" title="Supprimer" (click)="supprimerMaintenance(m.id)">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="empty-text">Aucune maintenance planifiée.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- ONGLET ALERTES -->
+  @if (ongletActif() === 'alertes') {
+    <div class="cryo-section">
+      <div class="section-toolbar">
+        <h2><i class="fas fa-exclamation-circle"></i> Journal des alertes</h2>
+        @if (alertesNonAcquittees() > 0) {
+          <button class="btn btn-secondary btn-sm" (click)="acquitterToutes()">
+            <i class="fas fa-check-double"></i> Tout acquitter
+          </button>
+        }
+      </div>
+
+      <div class="alertes-list">
+        @for (a of alertes(); track a.id) {
+          <div class="alerte-item"
+               [class.alerte-item--info]="a.severite === 'info'"
+               [class.alerte-item--warning]="a.severite === 'warning'"
+               [class.alerte-item--critical]="a.severite === 'critical'"
+               [class.alerte-item--acquittee]="a.acquittee">
+            <div class="alerte-icon">
+              @switch (a.type) {
+                @case ('temperature') { <i class="fas fa-thermometer-half"></i> }
+                @case ('azote') { <i class="fas fa-tint"></i> }
+                @case ('maintenance') { <i class="fas fa-wrench"></i> }
+                @case ('systeme') { <i class="fas fa-cog"></i> }
+              }
+            </div>
+            <div class="alerte-body">
+              <div class="alerte-header">
+                <span class="alerte-sev">{{ severiteLabel(a.severite) }}</span>
+                <span class="alerte-equip">{{ a.equipement }}</span>
+                <span class="alerte-date">{{ a.dateAlerte | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <p class="alerte-msg">{{ a.message }}</p>
+            </div>
+            @if (!a.acquittee) {
+              <button class="btn btn-secondary btn-sm" (click)="acquitterAlerte(a.id)">
+                <i class="fas fa-check"></i> Acquitter
+              </button>
+            } @else {
+              <span class="alerte-ack"><i class="fas fa-check-circle"></i></span>
+            }
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <p>Aucune alerte enregistrée</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

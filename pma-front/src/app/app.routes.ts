@@ -51,6 +51,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/rendez-vous/rdv-list/rdv-list.component').then(m => m.RdvListComponent)
       },
       {
+        path: 'agenda-biologiste',
+        canActivate: [roleGuard('Biologiste')],
+        loadComponent: () =>
+          import('./features/agenda-biologiste/agenda-biologiste.component').then((m) => m.AgendaBiologisteComponent),
+      },
+      {
         path: 'consentements',
         redirectTo: 'archives-dossiers',
         pathMatch: 'full'
@@ -82,8 +88,18 @@ export const routes: Routes = [
       },
       {
         path: 'identitovigilance/tracabilite',
-        canActivate: [roleGuard('Technicien', 'Biologiste')],
+        canActivate: [roleGuard('Biologiste')],
         loadComponent: () => import('./features/identitovigilance/tracabilite.component').then(m => m.TracabiliteComponent)
+      },
+      {
+        path: 'gestion-cryogenique',
+        canActivate: [roleGuard('Technicien')],
+        loadComponent: () => import('./features/gestion-cryogenique/gestion-cryogenique.component').then(m => m.GestionCryogeniqueComponent)
+      },
+      {
+        path: 'reporting',
+        canActivate: [roleGuard('Technicien')],
+        loadComponent: () => import('./features/reporting/reporting.component').then(m => m.ReportingComponent)
       },
       // Cycles — Biologiste
       {
@@ -121,12 +137,6 @@ export const routes: Routes = [
         path: 'administration/utilisateurs',
         canActivate: [roleGuard('Administrateur')],
         loadComponent: () => import('./features/users/user-list/user-list.component').then(m => m.UserListComponent)
-      },
-      {
-        path: 'administration/sante',
-        canActivate: [roleGuard('Administrateur')],
-        loadComponent: () =>
-          import('./features/administration/app-health/app-health.component').then((m) => m.AppHealthComponent),
       },
       { path: 'users', redirectTo: 'administration/utilisateurs', pathMatch: 'full' }
     ]

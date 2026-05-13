@@ -19,6 +19,11 @@ public class UnitOfWork(PmaDbContext context) : IUnitOfWork
     private IRepository<Canister>? _canisters;
     private IRepository<Bonbonne>? _bonbonnes;
     private IRepository<CycleEtapeHistorique>? _cycleEtapesHistorique;
+    private IRepository<CapteurTemperature>? _capteursTemperature;
+    private IRepository<HistoriqueTemperature>? _historiquesTemperature;
+    private IRepository<NiveauAzote>? _niveauxAzote;
+    private IRepository<MaintenancePreventive>? _maintenancesPreventives;
+    private IRepository<AlerteCryo>? _alertesCryo;
 
     public IRepository<Patient> Patients => _patients ??= new Repository<Patient>(context);
     public IRepository<User> Users => _users ??= new Repository<User>(context);
@@ -34,6 +39,11 @@ public class UnitOfWork(PmaDbContext context) : IUnitOfWork
     public IRepository<Canister> Canisters => _canisters ??= new Repository<Canister>(context);
     public IRepository<Bonbonne> Bonbonnes => _bonbonnes ??= new Repository<Bonbonne>(context);
     public IRepository<CycleEtapeHistorique> CycleEtapesHistorique => _cycleEtapesHistorique ??= new Repository<CycleEtapeHistorique>(context);
+    public IRepository<CapteurTemperature> CapteursTemperature => _capteursTemperature ??= new Repository<CapteurTemperature>(context);
+    public IRepository<HistoriqueTemperature> HistoriquesTemperature => _historiquesTemperature ??= new Repository<HistoriqueTemperature>(context);
+    public IRepository<NiveauAzote> NiveauxAzote => _niveauxAzote ??= new Repository<NiveauAzote>(context);
+    public IRepository<MaintenancePreventive> MaintenancesPreventives => _maintenancesPreventives ??= new Repository<MaintenancePreventive>(context);
+    public IRepository<AlerteCryo> AlertesCryo => _alertesCryo ??= new Repository<AlerteCryo>(context);
 
     public Task<int> SaveChangesAsync() => context.SaveChangesAsync();
 

@@ -2,6 +2,7 @@
 export interface AuditJournalEntry {
   id: string;
   dateHeure: string;
+  numDossier?: string;
   action: string;
   couple: string;
   detail: string;

@@ -13,20 +13,20 @@ export interface LabelPrintPayload {
 @Injectable({ providedIn: 'root' })
 export class LabelPrintService {
   /**
-   * Identifiants uniques lisibles en CODE128 (alphanum), liés au dossier patient pour l’identitovigilance.
+   * Identifiants uniques numériques lisibles en CODE128, liés au dossier patient.
    */
   generateCodes(
     count: number,
     opts?: { patientId: number; numDossier: string }
   ): string[] {
-    const t = Date.now().toString(36).toUpperCase();
-    const r = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const dossier = (opts?.numDossier ?? 'X').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 14) || 'X';
-    const pid = opts?.patientId != null ? String(opts.patientId) : '0';
-    return Array.from(
-      { length: count },
-      (_, i) => `PMA-${dossier}-P${pid}-${t}-${r}-${String(i + 1).padStart(2, '0')}`
-    );
+    const timestamp = Date.now().toString().slice(-8);
+    const pid = String(opts?.patientId ?? 0).replace(/\D/g, '').slice(-4).padStart(4, '0');
+    const dossierDigits = (opts?.numDossier ?? '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+    const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+    return Array.from({ length: count }, (_, i) => {
+      const seq = String(i + 1).padStart(2, '0');
+      return `${pid}${dossierDigits}${timestamp}${random}${seq}`;
+    });
   }
 
   barcodeSvg(value: string): string {

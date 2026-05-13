@@ -30,6 +30,9 @@
       <a routerLink="/cycles" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Cycles &amp; suivi
       </a>
+      <button type="button" class="btn btn-danger" (click)="deleteCycle()">
+        <i class="fas fa-trash-alt"></i> Supprimer ce cycle
+      </button>
     </div>
   </div>
 
@@ -117,6 +120,14 @@
             <input type="checkbox" [(ngModel)]="signerCertifie" name="signerCertifie" />
             <span>Je valide et signe électroniquement ce résultat de test.</span>
           </label>
+          <label class="sr-only" for="signataire-input">Signataire</label>
+          <input
+            id="signataire-input"
+            class="select-resultat"
+            type="text"
+            [(ngModel)]="signataireDraft"
+            name="signataireDraft"
+            placeholder="Nom du biologiste signataire" />
           <button type="button" class="btn btn-accent" (click)="signerResultat()" [disabled]="signingResult">
             @if (signingResult) {
               <i class="fas fa-spinner fa-spin"></i>

@@ -9,9 +9,54 @@
     </button>
   </div>
 
+  @if (disposBiologisteLoading) {
+    <div class="bio-indispo-panel bio-indispo-panel--loading">
+      <i class="fas fa-spinner fa-spin"></i>
+      <span>Chargement des indisponibilités du biologiste…</span>
+    </div>
+  } @else if (disposBiologisteError) {
+    <div class="bio-indispo-panel bio-indispo-panel--warn bio-indispo-panel--warn-row">
+      <div class="bio-indispo-warn-body">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+          <strong>Calendrier du biologiste inaccessible</strong>
+          <p class="bio-indispo-warn-detail">
+            Démarrez l’API PMA (ex. port 5057), vérifiez Oracle et la chaîne
+            <code>{{ apiBaseHint }}</code>. En développement, un redémarrage de l’API applique les migrations EF (table
+            <code>BIOLOGISTE_DISPONIBILITES</code>). Vous pouvez quand même enregistrer des rendez-vous ; les alertes
+            d’indisponibilité s’afficheront après un chargement réussi.
+          </p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="reloadDisponibilitesBiologiste()">
+        <i class="fas fa-redo"></i> Réessayer
+      </button>
+    </div>
+  } @else if (joursIndisponiblesBiologiste.length > 0) {
+    <div class="bio-indispo-panel">
+      <div class="bio-indispo-head">
+        <i class="fas fa-user-md"></i>
+        <div>
+          <strong>Indisponibilités du biologiste</strong>
+          <p class="bio-indispo-sub">Ne pas planifier de rendez-vous biologiste sur ces jours (sauf urgence validée).</p>
+        </div>
+      </div>
+      <ul class="bio-indispo-list">
+        @for (k of joursIndisponiblesBiologiste; track k) {
+          <li><i class="fas fa-ban"></i> {{ labelJourIndispo(k) }}</li>
+        }
+      </ul>
+    </div>
+  } @else {
+    <div class="bio-indispo-panel bio-indispo-panel--ok">
+      <i class="fas fa-check-circle"></i>
+      <span>Aucun jour marqué indisponible : le biologiste ne bloque aucune date pour le moment. Les rendez-vous peuvent être planifiés sur n’importe quel jour (sous réserve d’accord interne).</span>
+    </div>
+  }
+
   @if (showForm) {
     <div class="card form-card">
-      <h2>Nouveau rendez-vous</h2>
+      <h2>{{ isEditMode ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous' }}</h2>
       <form (ngSubmit)="saveRdv()">
         <div class="form-grid">
           <div class="form-group">
@@ -26,15 +71,42 @@
           <div class="form-group">
             <label>Date et heure</label>
             <input type="datetime-local" [(ngModel)]="editRdv.dateHeure" name="dateHeure" required />
+            @if (rdvFormeSurJourIndispoBiologiste) {
+              <p class="bio-indispo-form-warn">
+                <i class="fas fa-exclamation-circle"></i>
+                Cette date correspond à un jour indisponible du biologiste.
+              </p>
+            }
           </div>
           <div class="form-group full-width">
             <label>Motif</label>
             <textarea [(ngModel)]="editRdv.motif" name="motif" rows="3" placeholder="Motif du rendez-vous"></textarea>
+            <div class="ai-tools-row">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="suggestMotif()" [disabled]="aiMotifLoading">
+                <i class="fas fa-wand-magic-sparkles"></i> Auto-completer (IA)
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="reformulateMotif()" [disabled]="aiMotifLoading">
+                <i class="fas fa-pen-fancy"></i> Reformuler
+              </button>
+              @if (aiMotifLoading) {
+                <span class="ai-status"><i class="fas fa-spinner fa-spin"></i> Assistant en cours...</span>
+              }
+            </div>
+            @if (aiMotifError) {
+              <p class="ai-error">{{ aiMotifError }}</p>
+            }
+            @if (aiMotifSuggestions.length > 0) {
+              <div class="ai-suggestions">
+                @for (s of aiMotifSuggestions; track s) {
+                  <button type="button" class="ai-chip" (click)="applyMotifSuggestion(s)">{{ s }}</button>
+                }
+              </div>
+            }
           </div>
         </div>
         <div class="form-actions">
-          <button type="button" class="btn btn-secondary" (click)="showForm = false">Annuler</button>
-          <button type="submit" class="btn btn-primary">Planifier</button>
+          <button type="button" class="btn btn-secondary" (click)="showForm = false; isEditMode = false">Annuler</button>
+          <button type="submit" class="btn btn-primary">{{ isEditMode ? 'Enregistrer' : 'Planifier' }}</button>
         </div>
       </form>
     </div>
@@ -65,6 +137,9 @@
                 </div>
                 <span [class]="'rz-status-badge rz-status-badge--' + statutClass(rdv.statut)">{{ rdv.statut }}</span>
                 <div class="rz-row-aside">
+                  <button type="button" class="btn-icon" (click)="openEdit(rdv)" title="Modifier">
+                    <i class="fas fa-pen"></i>
+                  </button>
                   <button type="button" class="btn-icon btn-danger" (click)="deleteRdv(rdv.id)" title="Supprimer">
                     <i class="fas fa-trash"></i>
                   </button>

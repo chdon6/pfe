@@ -2,11 +2,13 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { finalize } from 'rxjs/operators';
 import { PatientService } from '../../../core/services/patient.service';
 import { RendezVousService } from '../../../core/services/rendez-vous.service';
 import { CyclePmaService } from '../../../core/services/cycle-pma.service';
 import { ConsentementService } from '../../../core/services/consentement.service';
 import { ActePmaService } from '../../../core/services/acte-pma.service';
+import { AiAssistantService } from '../../../core/services/ai-assistant.service';
 import { EntityHistoryService } from '../../../core/services/entity-history.service';
 import { RoleService } from '../../../core/services/role.service';
 import { Patient, RendezVous, CyclePma, Consentement, ActePma } from '../../../core/models';
@@ -31,6 +33,7 @@ export class PatientDetailComponent implements OnInit {
   private cycleService = inject(CyclePmaService);
   private consentementService = inject(ConsentementService);
   private acteService = inject(ActePmaService);
+  private aiAssistant = inject(AiAssistantService);
   private entityHistory = inject(EntityHistoryService);
   role = inject(RoleService);
 
@@ -53,6 +56,11 @@ export class PatientDetailComponent implements OnInit {
   consentements: Consentement[] = [];
   actes: ActePma[] = [];
   activeTab = 'documents';
+  aiSummary = '';
+  aiSummaryLoading = false;
+  aiNoteInput = '';
+  aiNoteOutput = '';
+  aiNoteLoading = false;
 
   readonly statutOptions = STATUT_REALISATION_OPTIONS;
   readonly libelleType = libelleTypeActe;
@@ -88,6 +96,57 @@ export class PatientDetailComponent implements OnInit {
 
   setTab(tab: string): void {
     this.activeTab = tab;
+  }
+
+  generateAiSummary(): void {
+    if (!this.patient) return;
+    this.aiSummaryLoading = true;
+    this.aiAssistant
+      .summarizePatient({
+        patientDisplayName: `${this.patient.prenom} ${this.patient.nom}`.trim(),
+        dossierType: this.patient.typeDossier,
+        rendezVous: this.rendezVous.map((r) => ({
+          dateHeure: r.dateHeure,
+          motif: r.motif,
+          statut: r.statut
+        })),
+        cycles: this.cycles.map((c) => ({
+          dateDebut: c.dateDebut,
+          phase: c.phase,
+          etapeCourante: c.etapeCourante,
+          statutCycle: c.statutCycle
+        })),
+        actes: this.actes.map((a) => ({
+          libelle: a.libelle,
+          typeActe: a.typeActe,
+          statutRealisation: a.statutRealisation
+        }))
+      })
+      .pipe(finalize(() => (this.aiSummaryLoading = false)))
+      .subscribe({
+        next: ({ summary }) => {
+          this.aiSummary = summary;
+        },
+        error: () => {
+          this.aiSummary = "Le resume IA n'est pas disponible pour le moment.";
+        }
+      });
+  }
+
+  reformulateAdminNote(): void {
+    if (!this.aiNoteInput.trim()) return;
+    this.aiNoteLoading = true;
+    this.aiAssistant
+      .reformulateNote(this.aiNoteInput)
+      .pipe(finalize(() => (this.aiNoteLoading = false)))
+      .subscribe({
+        next: ({ reformulatedNote }) => {
+          this.aiNoteOutput = reformulatedNote;
+        },
+        error: () => {
+          this.aiNoteOutput = "La reformulation a echoue. Reessayez dans quelques instants.";
+        }
+      });
   }
 
   get canPrescrireActe(): boolean {

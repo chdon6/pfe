@@ -59,6 +59,9 @@
   @if (stepError()) {
     <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> {{ stepError() }}</div>
   }
+  @if (cameraError()) {
+    <div class="alert alert-error"><i class="fas fa-video-slash"></i> {{ cameraError() }}</div>
+  }
 
   <div class="scanner-card" [class.scanner-card--wide]="currentStep() === 3">
     @switch (currentStep()) {
@@ -68,20 +71,42 @@
             <i class="fas fa-id-card-alt"></i>
           </div>
           <h2>Scanner le bracelet patient</h2>
-          <p>Saisissez le <strong>numéro de dossier</strong> lu sur le bracelet (ex. C-001).</p>
+          <p>
+            Sélectionnez le <strong>numéro de dossier</strong>, saisissez un code ou utilisez la
+            <strong>caméra</strong> pour lire le bracelet / étiquette patient (Code 128, QR…).
+          </p>
           <div class="scan-input-group">
             <input
               type="text"
               [value]="scanInput()"
               (input)="scanInput.set($any($event.target).value)"
               (keydown.enter)="submitStep1()"
-              placeholder="N° dossier..."
+              placeholder="Code-barres / N° dossier…"
               [disabled]="loading()"
+              autocomplete="off"
             />
             <button type="button" class="btn-scan" [disabled]="loading()" (click)="submitStep1()">
               @if (loading()) { <i class="fas fa-spinner fa-spin"></i> } @else { Valider }
             </button>
           </div>
+          <div class="camera-row">
+            <button
+              type="button"
+              class="btn-camera"
+              [disabled]="loading()"
+              (click)="toggleCamera(1)"
+            >
+              @if (cameraOpenFor() === 1) {
+                <i class="fas fa-stop-circle"></i> Fermer la caméra
+              } @else {
+                <i class="fas fa-camera"></i> Scanner avec la caméra
+              }
+            </button>
+          </div>
+          @if (cameraOpenFor() === 1) {
+            <div id="verification-camera-step1" class="camera-mount" aria-live="polite"></div>
+            <p class="camera-hint">Cadrez le code-barres ; la validation est automatique après lecture.</p>
+          }
         </div>
       }
       @case (2) {
@@ -91,19 +116,39 @@
           </div>
           <h2>Scanner l'étiquette du contenant</h2>
           <p>Le code identifie un <strong>élément biologique</strong> ou une <strong>paillette</strong> lié(e) à un patient.</p>
+
           <div class="scan-input-group">
             <input
               type="text"
               [value]="scanInput()"
               (input)="scanInput.set($any($event.target).value)"
               (keydown.enter)="submitStep2()"
-              placeholder="Code-barres..."
+              placeholder="Code-barres du contenant..."
               [disabled]="loading()"
+              autocomplete="off"
             />
             <button type="button" class="btn-scan" [disabled]="loading()" (click)="submitStep2()">
-              @if (loading()) { <i class="fas fa-spinner fa-spin"></i> } @else { Scanner }
+              @if (loading()) { <i class="fas fa-spinner fa-spin"></i> } @else { Vérifier }
             </button>
           </div>
+          <div class="camera-row">
+            <button
+              type="button"
+              class="btn-camera"
+              [disabled]="loading()"
+              (click)="toggleCamera(2)"
+            >
+              @if (cameraOpenFor() === 2) {
+                <i class="fas fa-stop-circle"></i> Fermer la caméra
+              } @else {
+                <i class="fas fa-camera"></i> Scanner avec la caméra
+              }
+            </button>
+          </div>
+          @if (cameraOpenFor() === 2) {
+            <div id="verification-camera-step2" class="camera-mount" aria-live="polite"></div>
+            <p class="camera-hint">Lecture automatique du code puis vérification de concordance.</p>
+          }
         </div>
       }
       @case (3) {
