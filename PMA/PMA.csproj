@@ -57,11 +57,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <AndroidResource Remove="Controleur\**" />
 	  <AndroidResource Remove="Scripts\**" />
+	  <Compile Remove="Controleur\**" />
 	  <Compile Remove="Scripts\**" />
+	  <EmbeddedResource Remove="Controleur\**" />
 	  <EmbeddedResource Remove="Scripts\**" />
+	  <MauiCss Remove="Controleur\**" />
 	  <MauiCss Remove="Scripts\**" />
+	  <MauiXaml Remove="Controleur\**" />
 	  <MauiXaml Remove="Scripts\**" />
+	  <None Remove="Controleur\**" />
 	  <None Remove="Scripts\**" />
 	</ItemGroup>
 
@@ -80,7 +86,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Controleur\" />
 	  <Folder Include="Uniteofwork\" />
 	</ItemGroup>
 

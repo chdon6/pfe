@@ -237,6 +237,7 @@ C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\mauiimage.outputs
 C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\PMA.AssemblyInfoInputs.cache
 C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\PMA.AssemblyInfo.cs
 C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\PMA.csproj.CoreCompileInputs.cache
+C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\PMA.sourcelink.json
 C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\XamlC.stamp
 C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\PMA.csproj.Up2Date
 C:\pfe\PMA\obj\Debug\net8.0-windows10.0.19041.0\win10-x64\PMA.dll

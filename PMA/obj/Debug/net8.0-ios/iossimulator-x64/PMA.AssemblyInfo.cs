@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PMA")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+eb35ecdd1139035f4241896bfc4e6e8b3ab0f6ca")]
 [assembly: System.Reflection.AssemblyProductAttribute("PMA")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PMA")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
