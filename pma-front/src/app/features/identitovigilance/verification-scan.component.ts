@@ -1,9 +1,6 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  Html5Qrcode,
-  Html5QrcodeSupportedFormats,
-} from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { PatientService } from '../../core/services/patient.service';
@@ -291,23 +288,18 @@ export class VerificationScanComponent implements OnInit, OnDestroy {
     await this.stopCamera();
     this.stepError.set('');
     try {
-      this.html5Qr = new Html5Qrcode(elementId, {
-        verbose: false,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODABAR,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.DATA_MATRIX,
-        ],
-      });
+      // Sans formatsToSupport → lib utilise l'API BarcodeDetector native du navigateur
+      // (Chrome/Edge) qui décode CODE128 correctement quelle que soit l'orientation
+      this.html5Qr = new Html5Qrcode(elementId, { verbose: false });
       await this.html5Qr.start(
         { facingMode: 'environment' },
         {
-          fps: 8,
-          qrbox: { width: 280, height: 140 },
+          fps: 25,
+          qrbox: { width: 350, height: 220 },
+          aspectRatio: 1.6,
+          disableFlip: false,
+          // Active BarcodeDetector natif (Chrome/Edge) pour CODE128 — non typé
+          ...({ experimentalFeatures: { useBarCodeDetectorIfSupported: true } } as object),
         },
         (decodedText) => this.onCameraDecoded(decodedText, step),
         () => {}
@@ -325,7 +317,7 @@ export class VerificationScanComponent implements OnInit, OnDestroy {
     const t = text.trim();
     if (!t || this.loading()) return;
     const now = Date.now();
-    if (t === this.lastDecodeText && now - this.lastDecodeTime < 1800) return;
+    if (t === this.lastDecodeText && now - this.lastDecodeTime < 800) return;
     this.lastDecodeText = t;
     this.lastDecodeTime = now;
     this.scanInput.set(t);

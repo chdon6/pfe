@@ -45,7 +45,7 @@ function roleFromUser(u: { profileLibelle?: string | null; profileId?: number } 
 
 export const ALL_MENU_ITEMS: MenuItem[] = [
   { label: 'Patients', icon: 'fas fa-user-injured', route: '/patients', roles: ['Secretaire'] },
-  { label: 'Rendez-vous', icon: 'fas fa-calendar-alt', route: '/rendez-vous', roles: ['Secretaire'] },
+  { label: 'Agenda', icon: 'fas fa-calendar-alt', route: '/rendez-vous', roles: ['Secretaire', 'Biologiste'] },
   { label: 'Archives dossiers', icon: 'fas fa-archive', route: '/archives-dossiers', roles: ['Secretaire'] },
   { label: 'Étiquettes', icon: 'fas fa-tags', route: '/identitovigilance/etiquettes', roles: ['Secretaire', 'Biologiste'] },
   { label: 'Vérification scan', icon: 'fas fa-barcode', route: '/identitovigilance/scan', roles: ['Biologiste'] },
@@ -67,12 +67,6 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
     label: 'Cycles & suivi PMA',
     icon: 'fas fa-project-diagram',
     route: '/cycles',
-    roles: ['Biologiste'],
-  },
-  {
-    label: 'Agenda & disponibilités',
-    icon: 'fas fa-calendar-check',
-    route: '/agenda-biologiste',
     roles: ['Biologiste'],
   },
   {

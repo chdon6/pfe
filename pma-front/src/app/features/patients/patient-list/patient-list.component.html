@@ -50,11 +50,11 @@
               }
             </div>
             <div class="rz-text-sm-muted">
-              @if (patient.typeDossier !== 'spermogramme' && (patient.femmeNom || patient.femmePrenom)) {
+              @if (patient.typeDossier === 'couple' && (patient.femmeNom || patient.femmePrenom)) {
                 <span>Conjoint(e) : {{ patient.femmePrenom }} {{ patient.femmeNom }} • </span>
               }
               <span>
-                @if (patient.typeDossier === 'spermogramme') {
+                @if (patient.typeDossier === 'spermogramme' || patient.typeDossier === 'femme_seul') {
                   Né(e) le {{ patient.dateNaissance | date:'dd/MM/yyyy' }}
                 } @else {
                   Lui {{ patient.dateNaissance | date:'dd/MM/yyyy' }}
@@ -71,6 +71,8 @@
           <span class="rz-text-xs-muted">
             @if (patient.typeDossier === 'spermogramme') {
               Spermogramme
+            } @else if (patient.typeDossier === 'femme_seul') {
+              Femme seule
             } @else {
               Couple
             }
@@ -80,6 +82,14 @@
               <i class="fas fa-eye"></i>
             </a>
             @if (!patient.demo) {
+              <a
+                [routerLink]="['/rendez-vous']"
+                [queryParams]="{ patientId: patient.id }"
+                class="btn-icon btn-rdv"
+                title="Voir dans l'agenda"
+              >
+                <i class="fas fa-calendar-plus"></i>
+              </a>
               <a [routerLink]="['/patients', patient.id, 'edit']" class="btn-icon" title="Modifier">
                 <i class="fas fa-edit"></i>
               </a>

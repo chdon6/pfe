@@ -1,0 +1,79 @@
+<div class="page rz-page rdv-form-page">
+  <div class="page-header rz-page-header">
+    <div>
+      <a routerLink="/rendez-vous" class="rdv-form-back">
+        <i class="fas fa-arrow-left"></i> Retour à l'agenda
+      </a>
+      <h1>{{ pageTitle }}</h1>
+      <p>Renseignez les informations du rendez-vous patient.</p>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+  } @else {
+    <section class="card rdv-form-card">
+      <form class="rdv-form" (ngSubmit)="save()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="rdv-patient">Patient <span class="required">*</span></label>
+            <select
+              id="rdv-patient"
+              [(ngModel)]="rdv.patientId"
+              (ngModelChange)="onPatientChange($event)"
+              name="patientId"
+              required
+            >
+              <option [ngValue]="0" disabled>— Sélectionner un patient —</option>
+              @for (p of patients; track p.id) {
+                <option [ngValue]="p.id">{{ p.prenom }} {{ p.nom }} ({{ p.numDossier }})</option>
+              }
+            </select>
+            @if (!isEdit && rdv.patientId > 0) {
+              <p class="field-hint">Dernier patient ajouté présélectionné.</p>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="rdv-datetime">Date et heure <span class="required">*</span></label>
+            <input
+              id="rdv-datetime"
+              type="datetime-local"
+              [(ngModel)]="rdv.dateHeure"
+              (ngModelChange)="onDateTimeChange($event)"
+              name="dateHeure"
+              required
+            />
+            @if (dateBlocked) {
+              <p class="field-error">
+                <i class="fas fa-ban"></i> Ce jour est marqué non disponible — choisissez une autre date.
+              </p>
+            }
+          </div>
+
+          <div class="form-group full-width">
+            <label for="rdv-motif">Motif</label>
+            <textarea
+              id="rdv-motif"
+              [(ngModel)]="rdv.motif"
+              name="motif"
+              rows="4"
+              placeholder="Ex. Consultation FIV, suivi dossier..."
+            ></textarea>
+            <p class="field-hint">Si vide, « Consultation PMA » sera enregistré par défaut.</p>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a routerLink="/rendez-vous" class="btn btn-secondary">Annuler</a>
+          <button type="submit" class="btn btn-primary" [disabled]="saving || dateBlocked">
+            @if (saving) {
+              <i class="fas fa-spinner fa-spin"></i>
+            }
+            {{ isEdit ? 'Enregistrer' : 'Planifier le rendez-vous' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+</div>

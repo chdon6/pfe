@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 import { CommonModule } from '@angular/common';
@@ -6,15 +6,15 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CyclePmaService } from '../../../core/services/cycle-pma.service';
+import { CycleSignalRService } from '../../../core/services/cycle-signalr.service';
 import { PatientService } from '../../../core/services/patient.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { EntityHistoryService } from '../../../core/services/entity-history.service';
-import {
-  PmaCyclePhaseService,
-  type PhaseCalendarItem,
-  type JourPhaseCalendrier,
-  PMA_TOTAL_STEPS,
-} from '../../../core/services/pma-cycle-phase.service';
+import { PmaCycleNotificationsService } from '../../../core/services/pma-cycle-notifications.service';
+import { CycleNotifSyncService } from '../../../core/services/cycle-notif-sync.service';
+import { PmaCyclePhaseService, type PhaseCalendarItem, type JourPhaseCalendrier } from '../../../core/services/pma-cycle-phase.service';
+import { totalStepsForActePma } from '../../../core/constants/acte-cycle-phases';
+import { actePmaResumeCourt } from '../../../core/constants/acte-cycle-phases';
 import { CyclePma, CycleEtapeHistorique, Patient, type ResultatTestGrossesse } from '../../../core/models';
 
 @Component({
@@ -24,17 +24,44 @@ import { CyclePma, CycleEtapeHistorique, Patient, type ResultatTestGrossesse } f
   templateUrl: './cycle-detail.component.html',
   styleUrl: './cycle-detail.component.scss'
 })
-export class CycleDetailComponent implements OnInit {
+export class CycleDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private cycleService = inject(CyclePmaService);
+  private signalR = inject(CycleSignalRService);
   private patientService = inject(PatientService);
   private phaseService = inject(PmaCyclePhaseService);
   private auth = inject(AuthService);
   private entityHistory = inject(EntityHistoryService);
+  private notifSvc = inject(PmaCycleNotificationsService);
+  private notifSync = inject(CycleNotifSyncService);
   private destroyRef = inject(DestroyRef);
 
+  /** Statut de la connexion temps réel affiché dans la vue. */
+  readonly isRealtime = signal(false);
+
   private readonly cycleSig = signal<CyclePma | undefined>(undefined);
+
+  /** Rappels journaliers propres à ce cycle. */
+  readonly cycleNotifsParJour = computed(() => {
+    const c = this.cycleSig();
+    if (!c) return [];
+    const items = this.notifSvc.items().filter((n) => n.cycleId === c.id);
+    const map = new Map<string, typeof items>();
+    for (const n of items) {
+      const key = n.jourDate;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(n);
+    }
+    const today = this.isoToday();
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([jourDate, list]) => ({
+        jourDate,
+        jourLabel: this.notifSvc.labelJour(jourDate, today),
+        items: list,
+      }));
+  });
 
   get cycle(): CyclePma | undefined {
     return this.cycleSig();
@@ -64,33 +91,70 @@ export class CycleDetailComponent implements OnInit {
   signResultMsg = '';
   signingResult = false;
 
-  readonly totalSteps = PMA_TOTAL_STEPS;
+  totalSteps = 1;
 
   ngOnInit(): void {
     const id = +this.route.snapshot.paramMap.get('id')!;
     this.pullCycle(id);
+    this.connectRealtime(id);
 
-    interval(90_000)
+    // Fallback polling toutes les 30 s (couvre les cas où SignalR est indisponible)
+    interval(30_000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         const pid = +this.route.snapshot.paramMap.get('id')!;
         if (pid) this.pullCycle(pid);
       });
+
+    // Rafraîchit le marqueur « aujourd'hui » à minuit ou lors d'une reconnexion
+    interval(60_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshPhases());
   }
 
-  /** Recharge le cycle et l’historique depuis l’API pour garder le calendrier à jour. */
+  ngOnDestroy(): void {
+    const id = +this.route.snapshot.paramMap.get('id')!;
+    if (id) void this.signalR.leaveCycle(id);
+  }
+
+  private connectRealtime(cycleId: number): void {
+    this.signalR
+      .joinCycle(cycleId)
+      .then(() => this.isRealtime.set(this.signalR.isConnected))
+      .catch(() => this.isRealtime.set(false));
+
+    this.signalR.cycleUpdated$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((id) => {
+        if (id === cycleId) this.pullCycle(id);
+      });
+  }
+
+  /** Ferme une alerte de suivi pour ce cycle. */
+  markNotifRead(id: string): void {
+    this.notifSvc.markRead(id);
+  }
+
+  /** Recharge le cycle et l'historique depuis l'API pour garder le calendrier à jour. */
   private pullCycle(id: number): void {
     this.cycleService.getById(id).subscribe((c) => {
       this.cycleSig.set(c);
       this.refreshPhases();
+      this.notifSync.forceSync();
       if (c?.patientId) {
         this.patientService.getById(c.patientId).subscribe({
-          next: (p) => (this.patient = p),
+          next: (p) => {
+            this.patient = p;
+            this.refreshPhases();
+          },
           error: () => undefined,
         });
       }
     });
-    this.cycleService.getHistorique(id).subscribe((h) => (this.historique = h));
+    this.cycleService.getHistorique(id).subscribe((h) => {
+      this.historique = h;
+      this.refreshPhases();
+    });
   }
 
   /** Met en évidence le jour courant dans le calendrier jour par jour. */
@@ -103,12 +167,24 @@ export class CycleDetailComponent implements OnInit {
     );
   }
 
+  acteParcoursLabel(): string {
+    return actePmaResumeCourt(this.patient?.typeActePma) || 'Parcours PMA';
+  }
+
+  trackExtremes(): { start: string; end: string } {
+    const steps = this.phaseService.getSteps(this.patient?.typeActePma);
+    if (steps.length === 0) return { start: '—', end: '—' };
+    return { start: steps[0]!.label, end: steps[steps.length - 1]!.label };
+  }
+
   private refreshPhases(): void {
     if (!this.cycle) return;
-    this.calendarPhases = this.phaseService.buildCalendar(this.cycle);
-    this.dailyPhases = this.phaseService.buildDailyCalendar(this.cycle);
-    this.stepCourant = this.phaseService.resolveStepIndex(this.cycle);
-    this.progressPercent = this.phaseService.progressPercent(this.stepCourant);
+    const acte = this.patient?.typeActePma;
+    this.totalSteps = totalStepsForActePma(acte);
+    this.calendarPhases = this.phaseService.buildCalendar(this.cycle, acte, this.historique);
+    this.dailyPhases = this.phaseService.buildDailyCalendar(this.cycle, acte, this.historique);
+    this.stepCourant = this.phaseService.resolveStepIndex(this.cycle, acte, this.historique);
+    this.progressPercent = this.phaseService.progressPercent(this.stepCourant, acte);
     const r = this.cycle.resultatTestGrossesse;
     this.resultatDraft =
       r === 'positif' || r === 'negatif' || r === 'en_attente' ? r : 'en_attente';
@@ -139,17 +215,17 @@ export class CycleDetailComponent implements OnInit {
         });
         this.entityHistory.logCycle(
           this.cycle!.id,
-          'Mise à jour résultat test de grossesse',
-          `Valeur : ${this.resultatDraft} (signature biologiste réinitialisée)`,
+          'Mise \u00e0 jour r\u00e9sultat test de grossesse',
+          `Valeur\u00a0: ${this.resultatDraft} (signature biologiste r\u00e9initialis\u00e9e)`,
           this.auth.user()?.identifiant
         );
         this.savingResult = false;
-        this.saveResultMsg = 'Résultat enregistré. Validez par signature si positif ou négatif.';
+        this.saveResultMsg = 'R\u00e9sultat enregistr\u00e9. Validez par signature si positif ou n\u00e9gatif.';
       },
       error: () => {
         this.savingResult = false;
         this.saveResultMsg =
-          'Enregistrement refusé par le serveur. Vérifiez l’API PATCH /cyclespma/{id}/resultat-test.';
+          "Enregistrement refus\u00e9 par le serveur. V\u00e9rifiez l'API PATCH /cyclespma/{id}/resultat-test.";
       },
     });
   }
@@ -168,8 +244,8 @@ export class CycleDetailComponent implements OnInit {
     if (!c?.resultatTestSigneLe) return '';
     const d = new Date(c.resultatTestSigneLe);
     if (Number.isNaN(d.getTime())) return '';
-    const lib = c.resultatTestSignePar?.trim() || '—';
-    return `Signé par ${lib} le ${d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    const lib = c.resultatTestSignePar?.trim() || '\u2014';
+    return `Sign\u00e9 par ${lib} le ${d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   }
 
   libelleSignataireDefaut(): string {
@@ -186,7 +262,7 @@ export class CycleDetailComponent implements OnInit {
     }
     const r = this.cycle.resultatTestGrossesse;
     if (r !== 'positif' && r !== 'negatif') {
-      this.signResultMsg = 'Seuls les résultats positif ou négatif peuvent être signés.';
+      this.signResultMsg = 'Seuls les r\u00e9sultats positif ou n\u00e9gatif peuvent \u00eatre sign\u00e9s.';
       return;
     }
     this.signingResult = true;
@@ -200,12 +276,12 @@ export class CycleDetailComponent implements OnInit {
       next: () => {
         this.signingResult = false;
         this.signerCertifie = false;
-        this.signResultMsg = 'Signature enregistrée.';
+        this.signResultMsg = 'Signature enregistr\u00e9e.';
         this.pullCycle(this.cycle!.id);
         this.entityHistory.logCycle(
           this.cycle!.id,
-          'Signature biologiste — résultat test de grossesse',
-          `Signataire : ${signataire}`,
+          'Signature biologiste \u2014 r\u00e9sultat test de grossesse',
+          `Signataire\u00a0: ${signataire}`,
           this.auth.user()?.identifiant
         );
       },
@@ -223,7 +299,7 @@ export class CycleDetailComponent implements OnInit {
       if (maybe?.message?.trim()) return maybe.message.trim();
       if (maybe?.title?.trim()) return maybe.title.trim();
     }
-    return 'Signature refusée. Vérifiez que le résultat est positif ou négatif.';
+    return 'Signature refus\u00e9e. V\u00e9rifiez que le r\u00e9sultat est positif ou n\u00e9gatif.';
   }
 
   deleteCycle(): void {
@@ -237,7 +313,7 @@ export class CycleDetailComponent implements OnInit {
   resultatAffiche(): string {
     const r = this.cycle?.resultatTestGrossesse;
     if (r === 'positif') return 'Positif';
-    if (r === 'negatif') return 'Négatif';
+    if (r === 'negatif') return 'N\u00e9gatif';
     return 'En attente';
   }
 
@@ -254,14 +330,22 @@ export class CycleDetailComponent implements OnInit {
     return '';
   }
 
+  private isoToday(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   dossierSubtitle(): string {
     if (!this.patient) return '';
-    const parts = [`N° dossier ${this.patient.numDossier}`];
+    const parts = [`N\u00b0 dossier ${this.patient.numDossier}`];
     if (this.patient.typeDossier === 'couple' && this.patient.femmePrenom) {
       parts.push(
-        `Couple : ${this.patient.prenom} ${this.patient.nom} & ${this.patient.femmePrenom} ${this.patient.femmeNom ?? ''}`
+        `Couple\u00a0: ${this.patient.prenom} ${this.patient.nom} & ${this.patient.femmePrenom} ${this.patient.femmeNom ?? ''}`
       );
     }
-    return parts.join(' · ');
+    return parts.join(' \u00b7 ');
   }
 }

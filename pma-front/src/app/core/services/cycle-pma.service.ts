@@ -1,9 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { demoHistoriqueForCycle } from '../data/demo-cycles';
 import { CyclePma, CycleEtapeHistorique, ResultatTestGrossesse } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -28,26 +27,30 @@ export class CyclePmaService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
-  /** Saisie du résultat β-hCG — efface la signature existante jusqu’à nouvelle validation biologiste. */
   patchResultatTest(id: number, resultat: ResultatTestGrossesse): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${id}/resultat-test`, {
       resultatTestGrossesse: resultat,
     });
   }
 
-  /** Signature électronique du résultat (biologiste) — résultat doit être positif ou négatif. */
   postSignatureResultatTest(id: number, signataire: string): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${id}/signature-resultat-test`, { signataire: signataire.trim() });
+    return this.http.post<void>(`${this.apiUrl}/${id}/signature-resultat-test`, {
+      signataire: signataire.trim(),
+    });
   }
 
+  /** Jalons réels en base pour un cycle. */
   getHistorique(cycleId: number): Observable<CycleEtapeHistorique[]> {
-    return this.http.get<CycleEtapeHistorique[]>(`${this.apiUrl}/${cycleId}/historique`).pipe(
-      map((rows) => {
-        if (rows?.length) return rows;
-        return environment.useDemoData ? demoHistoriqueForCycle(cycleId) : [];
-      }),
-      catchError(() => of(environment.useDemoData ? demoHistoriqueForCycle(cycleId) : []))
-    );
+    return this.http
+      .get<CycleEtapeHistorique[]>(`${this.apiUrl}/${cycleId}/historique`)
+      .pipe(catchError(() => of([])));
+  }
+
+  /** Tous les jalons (agenda / liste) — données API uniquement. */
+  getAllHistoriques(): Observable<CycleEtapeHistorique[]> {
+    return this.http
+      .get<CycleEtapeHistorique[]>(`${this.apiUrl}/historiques`)
+      .pipe(catchError(() => of([])));
   }
 
   avancerEtape(cycleId: number, data: { etape: string; observation?: string }): Observable<void> {

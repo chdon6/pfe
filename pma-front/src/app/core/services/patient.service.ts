@@ -1,8 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, catchError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Patient, PatientCreate } from '../models';
+import {
+  allocateNextNumeroDossier,
+  extractDossierSequence,
+} from '../utils/numero-dossier.util';
 
 @Injectable({ providedIn: 'root' })
 export class PatientService {
@@ -22,6 +26,23 @@ export class PatientService {
   getByNumDossier(numDossier: string): Observable<Patient> {
     const q = encodeURIComponent(numDossier.trim());
     return this.http.get<Patient>(`${this.apiUrl}/par-dossier/${q}`);
+  }
+
+  /** Prochain N° dossier libre (API, ou calcul local si l’endpoint n’est pas encore déployé). */
+  getProchainNumeroDossier(): Observable<{ numDossier: string; sequence: number }> {
+    return this.http
+      .get<{ numDossier: string; sequence: number }>(`${this.apiUrl}/prochain-numero-dossier`)
+      .pipe(catchError(() => this.getProchainNumeroDossierFromPatients()));
+  }
+
+  private getProchainNumeroDossierFromPatients(): Observable<{ numDossier: string; sequence: number }> {
+    return this.getAll().pipe(
+      map((patients) => {
+        const nums = patients.map((p) => p.numDossier);
+        const numDossier = allocateNextNumeroDossier(nums);
+        return { numDossier, sequence: extractDossierSequence(numDossier) };
+      })
+    );
   }
 
   create(formData: FormData): Observable<number> {

@@ -173,10 +173,16 @@
               <p>{{ r.description }}</p>
               <div class="rapport-meta">
                 <span class="rapport-periode"><i class="fas fa-calendar"></i> {{ r.periode }}</span>
+                @if (r.dernierExport) {
+                  <span class="rapport-last-export">
+                    <i class="fas fa-check-circle"></i>
+                    Dernier export : {{ r.dernierExport | date:'dd/MM/yyyy HH:mm' }}
+                  </span>
+                }
               </div>
             </div>
-            <button class="btn btn-primary btn-sm" (click)="exporterRapportReglementaire(r)">
-              <i class="fas fa-download"></i> Exporter
+            <button class="btn btn-pdf btn-sm" (click)="exporterRapportReglementaire(r)">
+              <i class="fas fa-file-pdf"></i> Exporter PDF
             </button>
           </div>
         }

@@ -1,5 +1,6 @@
 import { Injectable, computed, signal, inject } from '@angular/core';
-import { PmaCyclePhaseService, PMA_PHASE_STEPS } from './pma-cycle-phase.service';
+import { PmaCyclePhaseService } from './pma-cycle-phase.service';
+import { phasesForActePma } from '../constants/acte-cycle-phases';
 
 export type PmaNotifSeverity = 'info' | 'warning' | 'critical';
 
@@ -12,11 +13,31 @@ export interface PmaCycleNotification {
   createdAt: string;
   read: boolean;
   severity: PmaNotifSeverity;
+  /** Date calendaire du rappel (YYYY-MM-DD). */
+  jourDate: string;
+  phaseLabel: string;
+  /** Jour du cycle (J0 = date de début). */
+  jourCycle: number;
+  /** true = historique API ou RDV ; false = prévision type uniquement. */
+  fromApi?: boolean;
+}
+
+export interface PmaCycleJourGroup {
+  jourDate: string;
+  jourLabel: string;
+  items: PmaCycleNotification[];
 }
 
 const STORAGE = 'pma_cycle_notifications';
 
-/** Données nécessaires pour recalculer les rappels (aligné sur le calendrier des phases). */
+/** Fenêtre de planification affichée (jours à partir d’aujourd’hui). */
+const HORIZON_JOURS = 14;
+
+export interface PmaCycleRdvSource {
+  dateHeure: string;
+  motif?: string;
+}
+
 export interface PmaCycleNotifSource {
   cycleId: number;
   patientLabel: string;
@@ -25,6 +46,9 @@ export interface PmaCycleNotifSource {
   dateDebut: string;
   statut: string;
   resultatTestGrossesse?: string | null;
+  typeActePma?: string | null;
+  historique?: import('../models').CycleEtapeHistorique[];
+  rdvs?: PmaCycleRdvSource[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -34,6 +58,33 @@ export class PmaCycleNotificationsService {
   readonly items = signal<PmaCycleNotification[]>(this.load());
 
   readonly unreadCount = computed(() => this.items().filter((n) => !n.read).length);
+
+  /** Notifications regroupées par jour calendaire (tri chronologique). */
+  readonly groupedByJour = computed((): PmaCycleJourGroup[] => {
+    const map = new Map<string, PmaCycleNotification[]>();
+    for (const n of this.items()) {
+      const key = n.jourDate || this.isoDay(new Date());
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(n);
+    }
+    const today = this.isoDay(new Date());
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([jourDate, items]) => ({
+        jourDate,
+        jourLabel: this.labelJour(jourDate, today),
+        items: [...items].sort((a, b) => {
+          const sev = severityOrder(a.severity) - severityOrder(b.severity);
+          if (sev !== 0) return sev;
+          return a.patientLabel.localeCompare(b.patientLabel, 'fr');
+        }),
+      }));
+  });
+
+  readonly countAujourdhui = computed(() => {
+    const today = this.isoDay(new Date());
+    return this.items().filter((n) => n.jourDate === today).length;
+  });
 
   private load(): PmaCycleNotification[] {
     if (typeof localStorage === 'undefined') return [];
@@ -48,7 +99,7 @@ export class PmaCycleNotificationsService {
   }
 
   private persist(list: PmaCycleNotification[]): void {
-    localStorage.setItem(STORAGE, JSON.stringify(list.slice(0, 200)));
+    localStorage.setItem(STORAGE, JSON.stringify(list.slice(0, 300)));
     this.items.set(list);
   }
 
@@ -64,10 +115,7 @@ export class PmaCycleNotificationsService {
     this.persist(this.items().filter((n) => n.id !== id));
   }
 
-  /**
-   * Recalcule les alertes à partir des cycles (jalons jour J / J+1, test de grossesse, retard stimulation).
-   * Les identifiants `auto-*` sont stables pour conserver l’état « lu » entre deux synchronisations.
-   */
+  /** Recalcule les rappels journaliers par cycle (jalons du parcours selon l’acte PMA). */
   syncFromCycles(rows: PmaCycleNotifSource[]): void {
     const existing = this.load();
     const readMap = new Map(
@@ -77,8 +125,6 @@ export class PmaCycleNotificationsService {
 
     const generated: PmaCycleNotification[] = [];
     const today = this.stripTime(new Date());
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
     for (const r of rows) {
       if (!this.isActif(r.statut)) continue;
@@ -94,77 +140,145 @@ export class PmaCycleNotificationsService {
           this.row(
             `auto-${r.cycleId}-stim-long`,
             r,
+            this.isoDay(today),
+            0,
+            'Stimulation prolongée',
             'warning',
             'Stimulation prolongée',
-            `Le dossier ${r.patientLabel} est en stimulation depuis ${joursEcoules} jours — vérifier la réponse ovarienne.`,
+            `En stimulation depuis ${joursEcoules} jours — vérifier la réponse ovarienne.`,
             readMap
           )
         );
       }
 
-      for (let i = 0; i < PMA_PHASE_STEPS.length; i++) {
-        const step = i + 1;
-        const offset = PMA_PHASE_STEPS[i]!.offsetJours;
-        const label = PMA_PHASE_STEPS[i]!.label;
-        const phaseDate = new Date(start);
-        phaseDate.setDate(phaseDate.getDate() + offset);
-        const pd = this.stripTime(phaseDate);
+      const phaseSteps = phasesForActePma(r.typeActePma);
+      const total = phaseSteps.length;
+      const hist = r.historique ?? [];
+      const hasHistorique = hist.length > 0;
+      const windowStart = this.addDays(today, -7);
+      const windowEnd = this.addDays(today, HORIZON_JOURS);
 
-        if (this.sameCalendarDay(pd, today)) {
-          generated.push(
-            this.row(
-              `auto-${r.cycleId}-jalon-j0-${step}`,
-              r,
-              'info',
-              `Aujourd’hui — ${label}`,
-              `Jalon prévu du parcours type pour ${r.patientLabel} (jour ${offset} du cycle). Ouvrir le calendrier du cycle pour le suivi détaillé.`,
-              readMap
-            )
-          );
-        } else if (this.sameCalendarDay(pd, tomorrow)) {
-          generated.push(
-            this.row(
-              `auto-${r.cycleId}-jalon-j1-${step}`,
-              r,
-              'info',
-              `Demain — ${label}`,
-              `Prévoir le suivi pour ${r.patientLabel} : étape « ${label} » attendue demain (planning type).`,
-              readMap
-            )
-          );
+      for (const h of hist) {
+        const hDay = this.stripTime(new Date(h.dateEtape));
+        if (hDay < windowStart || hDay > windowEnd) continue;
+        const jourIso = this.isoDay(hDay);
+        const joursDepuisDebut = Math.max(0, Math.floor((hDay.getTime() - startMs) / 86400000));
+        const termine = /termine|realise|réalisé|realise/i.test(h.statut || '');
+        const when = this.labelJour(jourIso, this.isoDay(today));
+        generated.push(
+          this.row(
+            `auto-${r.cycleId}-hist-${h.id}`,
+            r,
+            jourIso,
+            joursDepuisDebut,
+            h.etape,
+            termine ? 'info' : 'info',
+            `${when} — ${h.etape}`,
+            termine
+              ? `Jalon enregistré pour ${r.patientLabel}${h.observation ? ' · ' + h.observation : ''}.`
+              : `Suivi en cours : ${r.patientLabel} — ${h.etape}.`,
+            readMap,
+            true
+          )
+        );
+      }
+
+      for (const rdv of r.rdvs ?? []) {
+        const rdvDay = this.stripTime(new Date(rdv.dateHeure));
+        if (rdvDay < windowStart || rdvDay > windowEnd) continue;
+        const jourIso = this.isoDay(rdvDay);
+        const motif = (rdv.motif || 'Rendez-vous').trim();
+        generated.push(
+          this.row(
+            `auto-${r.cycleId}-rdv-${jourIso}-${motif.slice(0, 20)}`,
+            r,
+            jourIso,
+            Math.max(0, Math.floor((rdvDay.getTime() - startMs) / 86400000)),
+            motif,
+            'info',
+            `${this.labelJour(jourIso, this.isoDay(today))} — RDV`,
+            `${motif} · ${r.patientLabel}`,
+            readMap,
+            true
+          )
+        );
+      }
+
+      if (!hasHistorique) {
+        for (let horizon = 0; horizon <= HORIZON_JOURS; horizon++) {
+          const targetDay = this.addDays(today, horizon);
+          const jourIso = this.isoDay(targetDay);
+
+          for (let i = 0; i < phaseSteps.length; i++) {
+            const step = i + 1;
+            const offset = phaseSteps[i]!.offsetJours;
+            const label = phaseSteps[i]!.label;
+            const phaseDate = new Date(start);
+            phaseDate.setDate(phaseDate.getDate() + offset);
+            const pd = this.stripTime(phaseDate);
+
+            if (!this.sameCalendarDay(pd, targetDay)) continue;
+
+            const when =
+              horizon === 0 ? 'Aujourd’hui' : horizon === 1 ? 'Demain' : this.formatDateFr(targetDay);
+
+            generated.push(
+              this.row(
+                `auto-${r.cycleId}-jour-${jourIso}-step-${step}`,
+                r,
+                jourIso,
+                offset,
+                label,
+                'info',
+                `${when} — ${label} (prévision)`,
+                `Prévision type pour ${r.patientLabel} · ${label} (J${offset}).`,
+                readMap,
+                false
+              )
+            );
+          }
         }
       }
 
-      const last = PMA_PHASE_STEPS[PMA_PHASE_STEPS.length - 1]!;
-      const testOffset = last.offsetJours;
+      const hasTestStep = phaseSteps.some((s) => s.key === 'test');
+      const last = phaseSteps[phaseSteps.length - 1];
+      const testOffset = last?.offsetJours ?? 0;
       const testDate = new Date(start);
       testDate.setDate(testDate.getDate() + testOffset);
       const testDay = this.stripTime(testDate);
+      const testIso = this.isoDay(testDay);
 
       const res = (r.resultatTestGrossesse || '').trim().toLowerCase();
       const attenteResultat = !res || res === 'en_attente';
+      const nearEnd = total > 0 && r.step >= Math.max(1, total - 1);
 
-      if (attenteResultat && this.stripTime(new Date()) >= testDay && r.step >= 9) {
+      if (hasTestStep && attenteResultat && this.stripTime(new Date()) >= testDay && nearEnd) {
         generated.push(
           this.row(
             `auto-${r.cycleId}-resultat-beta`,
             r,
+            testIso,
+            testOffset,
+            'Test de grossesse',
             criticalOrWarning(r.step),
-            'Saisir le résultat du test de grossesse',
-            `La fenêtre du test β-hCG est atteinte ou dépassée pour ${r.patientLabel}. Enregistrer le résultat (positif / négatif) dans le détail du cycle.`,
+            'Saisir le résultat du test',
+            `Fenêtre β-hCG atteinte pour ${r.patientLabel}.`,
             readMap
           )
         );
       }
 
-      if (attenteResultat && this.stripTime(new Date()) > this.addDays(testDay, 5)) {
+      if (hasTestStep && attenteResultat && this.stripTime(new Date()) > this.addDays(testDay, 5)) {
         generated.push(
           this.row(
             `auto-${r.cycleId}-resultat-retard`,
             r,
+            this.isoDay(new Date()),
+            testOffset,
+            'Test de grossesse',
             'critical',
             'Résultat du test en retard',
-            `Plus de 5 jours après la date prévue du test de grossesse pour ${r.patientLabel} sans résultat enregistré.`,
+            `Plus de 5 jours après la date prévue du test pour ${r.patientLabel}.`,
             readMap
           )
         );
@@ -172,17 +286,25 @@ export class PmaCycleNotificationsService {
     }
 
     const sevOrder: Record<PmaNotifSeverity, number> = { critical: 0, warning: 1, info: 2 };
-    generated.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
-    this.persist([...generated, ...manual].slice(0, 200));
+    generated.sort((a, b) => {
+      const d = a.jourDate.localeCompare(b.jourDate);
+      if (d !== 0) return d;
+      return sevOrder[a.severity] - sevOrder[b.severity];
+    });
+    this.persist([...generated, ...manual].slice(0, 300));
   }
 
   private row(
     id: string,
     r: PmaCycleNotifSource,
+    jourDate: string,
+    jourCycle: number,
+    phaseLabel: string,
     severity: PmaNotifSeverity,
     title: string,
     body: string,
-    readMap: Map<string, boolean>
+    readMap: Map<string, boolean>,
+    fromApi = false
   ): PmaCycleNotification {
     return {
       id,
@@ -193,7 +315,39 @@ export class PmaCycleNotificationsService {
       createdAt: new Date().toISOString(),
       read: readMap.get(id) ?? false,
       severity,
+      jourDate,
+      phaseLabel,
+      jourCycle,
+      fromApi,
     };
+  }
+
+  labelJour(jourDate: string, todayIso: string): string {
+    if (jourDate === todayIso) return 'Aujourd’hui';
+    const tomorrow = this.isoDay(this.addDays(this.parseIsoDay(todayIso), 1));
+    if (jourDate === tomorrow) return 'Demain';
+    return this.formatDateFr(this.parseIsoDay(jourDate));
+  }
+
+  private formatDateFr(d: Date): string {
+    return d.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  }
+
+  private parseIsoDay(iso: string): Date {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    if (!m) return new Date();
+    return new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0, 0);
+  }
+
+  private isoDay(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   private isActif(statut: string): boolean {
@@ -220,6 +374,10 @@ export class PmaCycleNotificationsService {
   }
 }
 
+function severityOrder(s: PmaNotifSeverity): number {
+  return s === 'critical' ? 0 : s === 'warning' ? 1 : 2;
+}
+
 function criticalOrWarning(step: number): PmaNotifSeverity {
-  return step >= 10 ? 'critical' : 'warning';
+  return step >= 8 ? 'critical' : 'warning';
 }

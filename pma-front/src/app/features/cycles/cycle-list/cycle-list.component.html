@@ -1,69 +1,16 @@
 <div class="page cycle-pma-page">
-  <div class="page-header cycle-pma-header">
-    <div>
-      <h1>Cycles &amp; suivi PMA</h1>
-      @if (isBiologiste()) {
-        <p class="subtitle">
-          Dossiers médicaux regroupés par patient : ouvrez un dossier pour voir les cycles, l’aperçu des phases par jour et le
-          résultat du test de grossesse ; le calendrier complet est dans le détail du cycle. Les données se rechargent
-          automatiquement toutes les 2 minutes ; les alertes (cloche) suivent les jalons du parcours type et les résultats de
-          test en attente.
-        </p>
-      } @else {
-        <p class="subtitle">
-          Liste des parcours, progression par patient et alertes — accès détail / calendrier par carte
-        </p>
-      }
-    </div>
-    <div class="header-right">
-      <div class="notif-wrap">
-        <button
-          type="button"
-          class="btn-bell"
-          (click)="togglePanel()"
-          [class.has-unread]="unreadCount() > 0"
-          aria-label="Notifications cycles">
-          <i class="fas fa-bell"></i>
-          @if (unreadCount() > 0) {
-            <span class="bell-badge">{{ unreadCount() }}</span>
-          }
-        </button>
-        @if (panelOpen()) {
-          <div class="notif-panel" (click)="$event.stopPropagation()">
-            <div class="notif-panel-head">
-              <strong>Alertes &amp; rappels</strong>
-              <button type="button" class="link-btn" (click)="markAllRead()">Tout lu</button>
-            </div>
-            @if (notifs().length === 0) {
-              <p class="notif-empty">Aucune notification pour l’instant.</p>
-            } @else {
-              <ul class="notif-list">
-                @for (n of notifs(); track n.id) {
-                  <li [class.unread]="!n.read" [attr.data-sev]="n.severity" (click)="markRead(n.id)">
-                    <div class="notif-title-row">
-                      <span class="notif-title">{{ n.title }}</span>
-                      <button type="button" class="icon-dismiss" (click)="dismissNotif(n.id, $event)" aria-label="Fermer">×</button>
-                    </div>
-                    <span class="notif-meta">{{ n.patientLabel }}</span>
-                    <p class="notif-body">{{ n.body }}</p>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        }
-      </div>
-      <button type="button" class="btn btn-primary" (click)="openNew()">
-        <i class="fas fa-plus"></i> Nouveau cycle
-      </button>
-    </div>
+  <div class="cycle-toolbar">
+    <button type="button" class="btn btn-primary" (click)="openNew()">
+      <i class="fas fa-plus"></i> Nouveau cycle
+    </button>
   </div>
 
   @if (showForm) {
     <div class="card form-card">
       <h2>Nouveau cycle PMA</h2>
       <p class="form-intro">
-        Un cycle ne peut être ouvert que pour un patient qui a au moins un rendez-vous planifié (non annulé).
+        Liste limitée aux dossiers dont l’acte prévu nécessite un <strong>cycle PMA</strong> (FIV, ICSI, insémination, etc.),
+        avec au moins un rendez-vous actif — les <strong>nouveaux patients</strong> apparaissent en premier.
         @if (patients.length > 0 && patientsEligiblesAuCycle().length === 0) {
           @if (isBiologiste()) {
             <span class="field-hint warn">Demandez à la secrétaire de planifier un rendez-vous pour ce dossier si besoin.</span>
@@ -88,35 +35,29 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Patient</label>
-            <select [(ngModel)]="newCycle.patientId" name="patientId" required>
+            <select [(ngModel)]="newCycle.patientId" name="patientId" required (ngModelChange)="onPatientChange()">
               <option [ngValue]="0" disabled>-- Sélectionner un patient --</option>
               @for (p of patientsEligiblesAuCycle(); track p.id) {
                 <option [ngValue]="p.id">{{ libelleOptionPatient(p) }}</option>
               }
             </select>
             @if (patients.length > 0 && patientsEligiblesAuCycle().length === 0) {
-              <p class="field-hint warn">Aucun patient éligible : créez d’abord un rendez-vous pour au moins un patient.</p>
+              <p class="field-hint warn">
+                Aucun dossier éligible : il faut un acte de type FIV / ICSI / insémination (etc.) et au moins un rendez-vous non annulé.
+              </p>
             }
             @if (newCycle.patientId) {
               <p class="field-hint parcours-dossier-hint">{{ parcoursDossierPatient(newCycle.patientId) }}</p>
-              @if (patientActeLaboSeul(newCycle.patientId)) {
-                <p class="field-hint warn">
-                  <i class="fas fa-snowflake"></i> Acte de type laboratoire / conservation : un cycle PMA n’est en général pas requis.
-                  Vous pouvez suivre les actes et la cryoconservation sans ouvrir de cycle.
-                </p>
-              }
-              @if (patientActeImpliqueCycle(newCycle.patientId)) {
-                <p class="field-hint ok-hint">
-                  <i class="fas fa-check-circle"></i> Parcours AMP : l’ouverture d’un cycle de suivi est cohérente avec l’acte prévu du dossier.
-                </p>
-              }
+              <p class="field-hint ok-hint">
+                <i class="fas fa-check-circle"></i> Parcours AMP : l’ouverture d’un cycle de suivi est cohérente avec l’acte prévu du dossier.
+              </p>
             }
           </div>
           <div class="form-group">
             <label>Phase</label>
             <select [(ngModel)]="newCycle.phase" name="phase" required>
               <option value="" disabled>-- Sélectionner une phase --</option>
-              @for (phase of phaseOptions; track phase) {
+              @for (phase of phaseOptionsForForm(); track phase) {
                 <option [value]="phase">{{ phase }}</option>
               }
             </select>
@@ -130,31 +71,157 @@
     </div>
   }
 
-  @if (loading) {
-    <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Chargement des cycles…</div>
-  } @else if (cycles.length === 0) {
-    <div class="empty-state">
-      <i class="fas fa-flask"></i>
-      <p>Aucun cycle enregistré — créez un parcours ou importez des données.</p>
-    </div>
-  } @else if (isBiologiste()) {
+  @if (!loading && cycles.length > 0) {
+    <div class="cycle-workspace cycle-workspace--split">
+      <aside class="planning-panel">
+        <div class="planning-panel-head">
+          <div class="planning-panel-title">
+            <span class="planning-icon"><i class="fas fa-calendar-check"></i></span>
+            <div>
+              <h2>Agenda journalier</h2>
+              <p>Jalons par cycle et par jour</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="planning-collapse"
+            (click)="toggleJourNotifs()"
+            [attr.aria-expanded]="showJourNotifs"
+            [title]="showJourNotifs ? 'Réduire' : 'Développer'">
+            <i class="fas" [class.fa-chevron-up]="showJourNotifs" [class.fa-chevron-down]="!showJourNotifs"></i>
+          </button>
+        </div>
+
+        @if (showJourNotifs) {
+          <div class="planning-filters">
+            <button
+              type="button"
+              class="filter-chip"
+              [class.is-active]="notifFilter === 'aujourdhui'"
+              (click)="setNotifFilter('aujourdhui')">
+              Aujourd’hui
+              @if (countNotifsAujourdhui() > 0) {
+                <span class="chip-count">{{ countNotifsAujourdhui() }}</span>
+              }
+            </button>
+            <button
+              type="button"
+              class="filter-chip"
+              [class.is-active]="notifFilter === 'semaine'"
+              (click)="setNotifFilter('semaine')">
+              7 prochains jours
+            </button>
+            <button type="button" class="planning-mark-all" (click)="markAllRead()">Tout lu</button>
+          </div>
+
+          <div class="planning-timeline">
+            @if (notifsAffichees().length === 0) {
+              <div class="planning-empty">
+                <i class="fas fa-calendar-check"></i>
+                <p>Aucun jalon sur la période sélectionnée.</p>
+              </div>
+            } @else {
+              @for (g of notifsAffichees(); track g.jourDate) {
+                <div class="timeline-day">
+                  <div class="timeline-day-marker">
+                    <span class="timeline-dot"></span>
+                    <span class="timeline-line"></span>
+                  </div>
+                  <div class="timeline-day-content">
+                    <header class="timeline-day-head">
+                      <span class="timeline-day-label">{{ g.jourLabel }}</span>
+                      <time class="timeline-day-date">{{ g.jourDate | date: 'EEEE d MMMM' : '' : 'fr-FR' }}</time>
+                      <span class="timeline-day-badge">{{ g.items.length }}</span>
+                    </header>
+                    <ul class="timeline-events">
+                      @for (n of g.items; track n.id) {
+                        <li>
+                          <button
+                            type="button"
+                            class="timeline-event"
+                            [class.is-unread]="!n.read"
+                            [class.is-api]="n.fromApi"
+                            [attr.data-sev]="n.severity"
+                            (click)="goToCycleFromNotif(n.cycleId, n.id)">
+                            <span class="te-phase">
+                              {{ n.phaseLabel }}
+                              @if (n.fromApi) {
+                                <span class="te-tag te-tag--real">Réel</span>
+                              } @else {
+                                <span class="te-tag te-tag--prev">Prévision</span>
+                              }
+                            </span>
+                            <span class="te-patient">{{ n.patientLabel }}</span>
+                            <span class="te-meta">
+                              <span class="te-j">J{{ n.jourCycle }}</span>
+                              <i class="fas fa-arrow-right te-arrow"></i>
+                            </span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      </aside>
+
+      <div class="cycle-main">
+        <div class="cycle-toolbar">
+          <div class="search-field">
+            <i class="fas fa-search search-field-icon" aria-hidden="true"></i>
+            <input
+              id="cycle-search"
+              type="search"
+              class="search-field-input"
+              [(ngModel)]="searchQuery"
+              name="cycleSearch"
+              placeholder="Rechercher un patient, n° dossier, phase…"
+              autocomplete="off" />
+            @if (searchQuery.trim()) {
+              <button type="button" class="search-field-clear" (click)="clearSearch()" aria-label="Effacer">
+                <i class="fas fa-times"></i>
+              </button>
+            }
+          </div>
+          <span class="toolbar-result">{{ totalDossiers() }} dossier(s)</span>
+        </div>
+
+        @if (isBiologiste()) {
+    @if (dossiersGroupes().length === 0 && searchQuery.trim()) {
+      <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <p>Aucun dossier ne correspond à « {{ searchQuery.trim() }} ».</p>
+      </div>
+    } @else {
     <div class="dossiers-list">
       @for (d of dossiersGroupes(); track d.patientId) {
-        <article class="dossier-medical-card">
+        <article class="dossier-medical-card" [class.is-expanded]="expandedDossierId() === d.patientId">
           <button
             type="button"
             class="dossier-head"
             [class.is-open]="expandedDossierId() === d.patientId"
             (click)="toggleDossier(d.patientId)"
             [attr.aria-expanded]="expandedDossierId() === d.patientId">
-            <span class="dossier-icon"><i class="fas fa-folder-medical"></i></span>
+            <span class="dossier-avatar" aria-hidden="true">{{ initiales(d.label) }}</span>
             <span class="dossier-text">
               <span class="dossier-title">{{ d.label }}</span>
-              <span class="dossier-meta"
-                >Dossier n° <strong>{{ d.numDossier }}</strong> · {{ d.cycles.length }} cycle(s) PMA</span
-              >
+              <span class="dossier-meta">
+                <span class="dossier-chip dossier-chip--dossier">
+                  <i class="fas fa-folder-open"></i> {{ d.numDossier }}
+                </span>
+                <span class="dossier-chip dossier-chip--acte">{{ acteDossier(d) }}</span>
+                <span class="dossier-chip dossier-chip--cycles">
+                  {{ d.cycles.length }} cycle{{ d.cycles.length > 1 ? 's' : '' }}
+                </span>
+              </span>
             </span>
-            <i class="fas fa-chevron-down dossier-chevron"></i>
+            <span class="dossier-expand">
+              <span class="dossier-expand-label">{{ expandedDossierId() === d.patientId ? 'Réduire' : 'Détail' }}</span>
+              <i class="fas fa-chevron-down dossier-chevron"></i>
+            </span>
           </button>
 
           @if (expandedDossierId() === d.patientId) {
@@ -179,7 +246,7 @@
                       }
                     </div>
                     <span class="step-fraction"
-                      >Étape <strong>{{ stepIndex(c) }}/{{ totalSteps }}</strong></span
+                      >Étape <strong>{{ stepIndex(c) }}/{{ totalStepsFor(c) }}</strong></span
                     >
                     <button
                       type="button"
@@ -209,9 +276,16 @@
         </article>
       }
     </div>
-  } @else {
+    }
+        } @else {
+    @if (cyclesFiltres().length === 0 && searchQuery.trim()) {
+      <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <p>Aucun cycle ne correspond à votre recherche.</p>
+      </div>
+    } @else {
     <div class="cards-list">
-      @for (c of cycles; track c.id) {
+      @for (c of cyclesFiltres(); track c.id) {
         <article
           class="cycle-card"
           role="button"
@@ -244,7 +318,7 @@
             </div>
             <div class="card-actions">
               <span class="step-fraction"
-                >Étape <strong>{{ stepIndex(c) }}/{{ totalSteps }}</strong></span
+                >Étape <strong>{{ stepIndex(c) }}/{{ totalStepsFor(c) }}</strong></span
               >
               <i class="fas fa-chevron-right step-chevron"></i>
               <button
@@ -262,16 +336,33 @@
               <div class="track-fill" [style.width.%]="progressPct(c)"></div>
             </div>
             <div class="track-labels">
-              <span>Consultation initiale</span>
-              <span>Test de grossesse</span>
+              <span>{{ trackLabels(c).start }}</span>
+              <span>{{ trackLabels(c).end }}</span>
             </div>
           </div>
         </article>
       }
     </div>
+    }
+        }
+      </div>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="loading-state loading-state--hero">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Chargement des cycles et de l’agenda…</p>
+    </div>
+  } @else if (cycles.length === 0 && !showForm) {
+    <div class="empty-state empty-state--hero">
+      <div class="empty-icon"><i class="fas fa-flask"></i></div>
+      <h2>Aucun cycle enregistré</h2>
+      <p>Créez un premier parcours PMA pour commencer le suivi journalier.</p>
+      <button type="button" class="btn btn-primary" (click)="openNew()">
+        <i class="fas fa-plus"></i> Créer un cycle
+      </button>
+    </div>
   }
 </div>
 
-@if (panelOpen()) {
-  <div class="backdrop" (click)="closePanel()" aria-hidden="true"></div>
-}

@@ -144,6 +144,187 @@
   letter-spacing: 0.5px;
 }
 
+// ── Badge sur les items de nav ────────────────────────────────────────────────
+.nav-notif-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+// ── Panneau d'alertes suivi ───────────────────────────────────────────────────
+.sidebar-notif-wrap {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-notif-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+
+  &.has-unread {
+    color: #fbbf24;
+    .fa-bell { animation: bell-ring 2.5s ease-in-out infinite; }
+  }
+
+  > .fa-bell { font-size: 1rem; flex-shrink: 0; }
+
+  > span:nth-child(2) { flex: 1; text-align: left; }
+
+  .snw-arrow {
+    margin-left: auto;
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+    .is-open & { transform: rotate(180deg); }
+  }
+}
+
+.snw-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-notif-panel {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.snp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.snp-mark-all {
+  background: transparent;
+  border: none;
+  color: #a78bfa;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  &:hover { text-decoration: underline; }
+}
+
+.snp-list {
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.snp-empty {
+  padding: 14px 16px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  i { color: #10b981; }
+}
+
+.snp-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(255, 255, 255, 0.06); }
+
+  &.unread .snp-title { font-weight: 700; color: #fff; }
+
+  &[data-sev='critical'] .snp-sev-dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.7); }
+  &[data-sev='warning']  .snp-sev-dot { background: #f59e0b; }
+  &[data-sev='info']     .snp-sev-dot { background: #60a5fa; }
+}
+
+.snp-sev-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: #6b7280;
+}
+
+.snp-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.snp-title {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.snp-patient {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.snp-more {
+  padding: 8px 14px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+  font-style: italic;
+}
+
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0deg); }
+  10%, 30%  { transform: rotate(-15deg); }
+  20%, 40%  { transform: rotate(15deg); }
+  50%       { transform: rotate(0deg); }
+}
+
 .btn-logout {
   display: flex;
   align-items: center;

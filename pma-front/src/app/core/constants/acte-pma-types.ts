@@ -1,5 +1,5 @@
 /** Aligné sur l'API /api/actespma/types (ActePmaCatalog). */
-export type TypeDossierActe = 'couple' | 'spermogramme';
+export type TypeDossierActe = 'couple' | 'spermogramme' | 'femme_seul';
 
 /** Une entrée catalogue : `dossiers` indique où l'acte est proposé à la création du dossier. */
 type ActePmaEntry = {
@@ -10,15 +10,15 @@ type ActePmaEntry = {
 
 const ACTE_PMA_ENTRIES: readonly ActePmaEntry[] = [
   // — Parcours AMP classique (dossier couple)
-  { code: 'fiv', label: 'FIV — Fécondation in vitro', dossiers: ['couple'] },
-  { code: 'icsi', label: 'ICSI — Injection intracytoplasmique', dossiers: ['couple'] },
-  { code: 'insemination', label: 'IIU — Insémination intra-utérine', dossiers: ['couple'] },
-  { code: 'ponction_ovocytes', label: 'Ponction ovocytes', dossiers: ['couple'] },
-  { code: 'transfer_embryonnaire', label: 'Transfert embryonnaire', dossiers: ['couple'] },
-  { code: 'congelation_embryons', label: 'Congélation d’embryons', dossiers: ['couple'] },
-  { code: 'biopsie_embryonnaire', label: 'Biopsie embryonnaire (PGT)', dossiers: ['couple'] },
-  { code: 'don_ovocytes', label: 'AMP avec don d’ovocytes', dossiers: ['couple'] },
-  { code: 'don_sperme', label: 'AMP avec don de sperme', dossiers: ['couple'] },
+  { code: 'fiv', label: 'FIV — Fécondation in vitro', dossiers: ['couple', 'femme_seul'] },
+  { code: 'icsi', label: 'ICSI — Injection intracytoplasmique', dossiers: ['couple', 'femme_seul'] },
+  { code: 'insemination', label: 'IIU — Insémination intra-utérine', dossiers: ['couple', 'femme_seul'] },
+  { code: 'ponction_ovocytes', label: 'Ponction ovocytes', dossiers: ['couple', 'femme_seul'] },
+  { code: 'transfer_embryonnaire', label: 'Transfert embryonnaire', dossiers: ['couple', 'femme_seul'] },
+  { code: 'congelation_embryons', label: 'Congélation d’embryons', dossiers: ['couple', 'femme_seul'] },
+  { code: 'biopsie_embryonnaire', label: 'Biopsie embryonnaire (PGT)', dossiers: ['couple', 'femme_seul'] },
+  { code: 'don_ovocytes', label: 'AMP avec don d’ovocytes', dossiers: ['couple', 'femme_seul'] },
+  { code: 'don_sperme', label: 'AMP avec don de sperme', dossiers: ['couple', 'femme_seul'] },
   // — Actes côté homme (bilan, laboratoire, prélèvements — couple ou homme seul)
   {
     code: 'spermogramme_bilan',
@@ -114,7 +114,7 @@ const ACTES_LABO_SANS_CYCLE_STIMULATION = new Set([
   'autre'
 ]);
 
-function norm(code?: string | null): string {
+export function norm(code?: string | null): string {
   return (code || '').trim().toLowerCase();
 }
 
@@ -169,4 +169,52 @@ export function conseilStockagePourActe(typeActePma?: string | null): string {
   if (typeActePmaNecessiteStockageCryo(typeActePma))
     return 'Choisir une bonbonne adaptée au type de stockage, un canister avec emplacement libre, puis la couleur du tube.';
   return 'Sélectionnez la bonbonne, le canister et une position libre ; code-barres unique obligatoire.';
+}
+
+/** Type de consentement aligné sur l’acte PMA choisi (formulaire secrétaire). */
+export function consentementTypeFromActePma(code?: string | null): string {
+  const c = norm(code);
+  switch (c) {
+    case 'fiv':
+      return 'Consentement FIV';
+    case 'icsi':
+      return 'Consentement ICSI';
+    case 'insemination':
+      return 'Consentement IIU';
+    case 'congelation_embryons':
+      return 'Congélation embryonnaire';
+    case 'don_ovocytes':
+      return "Don d'ovocytes";
+    case 'don_sperme':
+      return 'Don de sperme';
+    case 'spermogramme_bilan':
+      return 'Bilan andrologique / spermogramme';
+    case 'preparation_sperme':
+      return 'Consentement traitement du sperme en laboratoire';
+    case 'cryoconservation_sperme':
+      return 'Consentement cryoconservation du sperme';
+    case 'tesa':
+    case 'tese':
+      return 'Consentement prélèvement testiculaire (TESA / TESE)';
+    case 'mesa':
+    case 'pesa':
+      return 'Consentement prélèvement épididymaire (PESA / MESA)';
+    case 'ponction_ovocytes':
+    case 'transfer_embryonnaire':
+    case 'biopsie_embryonnaire':
+      return 'Consentement général PMA';
+    case 'autre':
+      return 'Consentement général PMA';
+    default:
+      return '';
+  }
+}
+
+/** Motif de rendez-vous suggéré selon l’acte PMA prévu du patient. */
+export function motifRdvFromActePma(code?: string | null): string {
+  const c = norm(code);
+  if (!c) return '';
+  const libelle = libelleTypeActe(c);
+  if (!libelle || libelle === c) return 'Consultation PMA';
+  return `Rendez-vous — ${libelle}`;
 }

@@ -5,6 +5,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { LabelPrintService } from '../../core/services/label-print.service';
 import { IdentitovigilanceAuditService } from '../../core/services/identitovigilance-audit.service';
 import { PatientService } from '../../core/services/patient.service';
+import { ElementBiologiqueService } from '../../core/services/element-biologique.service';
 import type { Patient } from '../../core/models';
 
 interface LabelType {
@@ -283,6 +284,7 @@ export class EtiquettesComponent implements OnInit {
   private labelPrint = inject(LabelPrintService);
   private audit = inject(IdentitovigilanceAuditService);
   private patientService = inject(PatientService);
+  private elementSvc = inject(ElementBiologiqueService);
 
   printModal = signal(false);
   modalPatientId = 0;
@@ -319,6 +321,9 @@ export class EtiquettesComponent implements OnInit {
     const dossier = p.numDossier?.trim() || `#${p.id}`;
     if (p.typeDossier === 'spermogramme') {
       return `${dossier} — ${p.prenom} ${p.nom} (homme seul)`;
+    }
+    if (p.typeDossier === 'femme_seul') {
+      return `${dossier} — ${p.prenom} ${p.nom} (femme seule)`;
     }
     const femme =
       p.femmePrenom || p.femmeNom
@@ -391,6 +396,18 @@ export class EtiquettesComponent implements OnInit {
       qte,
       codes,
     });
+
+    // Enregistrer chaque code imprimé en base pour le scan d'identitovigilance
+    const now = new Date().toISOString();
+    for (const code of codes) {
+      this.elementSvc.create({
+        id: 0,
+        typeElement: lt.name,
+        codeBarre: code,
+        dateCreation: now,
+        patientId: p.id,
+      }).subscribe({ error: () => {} });
+    }
 
     const user = this.auth.user();
     const operateur = user ? `${user.prenom} ${user.nom}` : '—';

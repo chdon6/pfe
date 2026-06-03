@@ -1,6 +1,7 @@
 export * from './patient.model';
 export * from './user.model';
 export * from './profile.model';
+export * from './disponibilite-agenda.model';
 export * from './rendez-vous.model';
 export * from './consentement.model';
 export * from './acte-pma.model';

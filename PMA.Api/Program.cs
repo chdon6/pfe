@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using PMA.Api.Data;
 using PMA.Api.Entites;
+using PMA.Api.Hubs;
 using PMA.Api.Interfaces;
 using PMA.Api.Repositories;
 using PMA.Api.Services;
@@ -40,6 +41,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSignalR();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -66,7 +68,8 @@ builder.Services.AddCors(o =>
     o.AddDefaultPolicy(p => p
         .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
         .AllowAnyHeader()
-        .AllowAnyMethod());
+        .AllowAnyMethod()
+        .AllowCredentials()); // requis pour SignalR WebSocket
 });
 
 var app = builder.Build();
@@ -109,6 +112,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<CycleHub>("/hubs/cycles");
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 await app.RunAsync();

@@ -406,6 +406,10 @@
 
 .rapport-meta {
   margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .rapport-periode {
@@ -415,9 +419,45 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 
-  i {
-    margin-right: 4px;
+  i { margin-right: 4px; }
+}
+
+.rapport-last-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 500;
+
+  i { font-size: 0.7rem; }
+}
+
+.btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity 0.2s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
   }
+
+  &:active { transform: translateY(0); }
+
+  i { font-size: 0.9rem; }
 }
 
 @media (max-width: 768px) {

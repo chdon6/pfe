@@ -7,6 +7,9 @@
           @if (patient.typeDossier === 'spermogramme') {
             {{ patient.prenom }} {{ patient.nom }} — Dossier {{ patient.numDossier }}
             <span class="badge badge-spermogramme">Spermogramme</span>
+          } @else if (patient.typeDossier === 'femme_seul') {
+            {{ patient.prenom }} {{ patient.nom }} — Dossier {{ patient.numDossier }}
+            <span class="badge badge-femme-seul">Femme seule</span>
           } @else {
             {{ patient.prenom }} {{ patient.nom }} &amp; {{ patient.femmePrenom }} {{ patient.femmeNom }} — Dossier {{ patient.numDossier }}
             <span class="badge badge-couple">Couple</span>
@@ -16,7 +19,14 @@
     </div>
     <div class="header-actions">
       @if (patient) {
-        <a [routerLink]="['/patients', patient.id, 'edit']" class="btn btn-primary">
+        <a
+          [routerLink]="['/rendez-vous']"
+          [queryParams]="{ patientId: patient.id }"
+          class="btn btn-primary"
+        >
+          <i class="fas fa-calendar-plus"></i> Planifier un RDV
+        </a>
+        <a [routerLink]="['/patients', patient.id, 'edit']" class="btn btn-secondary">
           <i class="fas fa-edit"></i> Modifier
         </a>
       }
@@ -59,7 +69,7 @@
           }
         </div>
 
-        @if (patient.typeDossier === 'spermogramme') {
+        @if (patient.typeDossier === 'spermogramme' || patient.typeDossier === 'femme_seul') {
           <h2>{{ patient.prenom }} {{ patient.nom }}</h2>
           <div class="info-row">
             <span class="label">Date de naissance</span>
@@ -94,6 +104,8 @@
           <span class="value">
             @if (patient.typeDossier === 'spermogramme') {
               Spermogramme (homme seul)
+            } @else if (patient.typeDossier === 'femme_seul') {
+              Femme seule
             } @else {
               Couple
             }

@@ -64,7 +64,12 @@ export class PatientListComponent implements OnInit {
         p.prenom.toLowerCase().includes(termLower) ||
         p.numDossier.toLowerCase().includes(termLower) ||
         femme.includes(termLower) ||
-        (p.typeDossier === 'spermogramme' ? 'spermogramme' : 'couple').includes(termLower) ||
+        (p.typeDossier === 'spermogramme'
+          ? 'spermogramme'
+          : p.typeDossier === 'femme_seul'
+            ? 'femme seule femme_seul'
+            : 'couple'
+        ).includes(termLower) ||
         phoneMatch
       );
     });

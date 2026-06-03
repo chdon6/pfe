@@ -4,7 +4,7 @@
       <h1>Calendrier du cycle PMA</h1>
       @if (cycle) {
         <p class="header-sub">
-          {{ patientLabel() }} — Phase : {{ cycle.phase }} — Étape {{ stepCourant }}/{{ totalSteps }}
+          {{ patientLabel() }} — {{ acteParcoursLabel() }} — Phase : {{ cycle.phase }} — Étape {{ stepCourant }}/{{ totalSteps }}
         </p>
         @if (dossierSubtitle()) {
           <p class="header-dossier">{{ dossierSubtitle() }}</p>
@@ -27,6 +27,10 @@
       }
     </div>
     <div class="header-actions-detail">
+      <span class="realtime-badge" [class.realtime-badge--on]="isRealtime()" [title]="isRealtime() ? 'Temps réel actif — SignalR connecté' : 'Mode polling (30 s) — SignalR non disponible'">
+        <i class="fas" [class.fa-circle]="isRealtime()" [class.fa-clock]="!isRealtime()"></i>
+        {{ isRealtime() ? 'Temps réel' : 'Polling 30 s' }}
+      </span>
       <a routerLink="/cycles" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Cycles &amp; suivi
       </a>
@@ -36,19 +40,40 @@
     </div>
   </div>
 
+  @if (cycleNotifsParJour().length > 0) {
+    <div class="card cycle-jour-notifs">
+      <h2><i class="fas fa-bell"></i> Rappels par jour — ce cycle</h2>
+      @for (g of cycleNotifsParJour(); track g.jourDate) {
+        <div class="cjn-day">
+          <h3 class="cjn-day-title">{{ g.jourLabel }} <span class="cjn-date">{{ g.jourDate | date: 'dd/MM/yyyy' }}</span></h3>
+          <ul class="cjn-list">
+            @for (n of g.items; track n.id) {
+              <li class="cjn-item" [attr.data-sev]="n.severity" [class.cjn-unread]="!n.read">
+                <strong>{{ n.phaseLabel }}</strong>
+                <span>{{ n.body }}</span>
+                <button type="button" class="cjn-mark" (click)="markNotifRead(n.id)">Lu</button>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+  }
+
   @if (cycle) {
     <div class="card calendar-card">
       <h2><i class="fas fa-calendar-week"></i> Phases prévues du parcours</h2>
       <p class="calendar-intro">
-        Dates indicatives calculées à partir de la date de début du cycle (planification type). L’historique réel figure ci-dessous.
+        Dates issues de l’historique enregistré en base (jalons réels). Les étapes sans date en base restent indicatives
+        selon la date de début du cycle.
       </p>
       <div class="progress-track">
         <div class="progress-bar-lg">
           <div class="progress-fill-lg" [style.width.%]="progressPercent"></div>
         </div>
         <div class="progress-extremes">
-          <span>Consultation initiale</span>
-          <span>Test de grossesse</span>
+          <span>{{ trackExtremes().start }}</span>
+          <span>{{ trackExtremes().end }}</span>
         </div>
       </div>
       <div class="phase-grid">
@@ -56,7 +81,12 @@
           <div class="phase-cell" [class]="'statut-' + ph.statut">
             <span class="phase-idx">{{ ph.index }}</span>
             <span class="phase-name">{{ ph.label }}</span>
-            <span class="phase-date">{{ ph.datePrevue | date: 'yyyy-MM-dd' }}</span>
+            <span class="phase-date">
+              {{ ph.datePrevue | date: 'yyyy-MM-dd' }}
+              @if (ph.fromHistorique) {
+                <span class="phase-date-real" title="Date issue de l’historique">réel</span>
+              }
+            </span>
           </div>
         }
       </div>
@@ -65,14 +95,13 @@
     <div class="card daily-calendar-card">
       <h2><i class="fas fa-calendar-day"></i> Suivi jour par jour</h2>
       <p class="calendar-intro">
-        Chaque jour du parcours type est rattaché à une phase PMA (planification indicative à partir de la date de début). Le
-        <strong>jour courant</strong> est surligné en violet.
+        Calendrier jour par jour selon l’acte PMA du patient. Le <strong>jour courant</strong> est surligné en violet.
       </p>
       <div class="daily-weeks">
         @for (week of dailyWeeks(); track $index) {
           <div class="week-row">
             @for (d of week; track d.jourIndex) {
-              <div [ngClass]="['day-cell', 'statut-' + d.statut, { 'is-today': isCalendarToday(d) }]">
+              <div class="day-cell" [ngClass]="'statut-' + d.statut" [class.is-today]="isCalendarToday(d)">
                 <span class="day-idx">J{{ d.jourIndex + 1 }}</span>
                 <span class="day-date">{{ d.date | date: 'dd/MM' }}</span>
                 <span class="day-phase" [title]="d.phaseLabel">{{ d.phaseLabel }}</span>

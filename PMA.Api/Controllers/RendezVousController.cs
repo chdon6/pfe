@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using PMA.Api.Entites;
 using PMA.Api.Interfaces;
 
@@ -8,11 +9,16 @@ namespace PMA.Api.Controllers
     [Route("api/rendezvous")]
     public class RendezVousController : ControllerBase
     {
+        private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         private readonly IUnitOfWork _uow;
+        private readonly string _disponibilitesFilePath;
 
-        public RendezVousController(IUnitOfWork uow)
+        public RendezVousController(IUnitOfWork uow, IWebHostEnvironment env)
         {
             _uow = uow;
+            var dir = Path.Combine(env.ContentRootPath, "Data");
+            Directory.CreateDirectory(dir);
+            _disponibilitesFilePath = Path.Combine(dir, "disponibilites-agenda.json");
         }
 
         // ─── GET ALL ────────────────────────────────────────────────────────────
@@ -35,11 +41,21 @@ namespace PMA.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] RendezVousDto dto)
         {
+            if (dto.PatientId <= 0)
+                return BadRequest("Patient invalide.");
+
+            var patient = await _uow.Patients.GetByIdAsync(dto.PatientId);
+            if (patient is null)
+                return BadRequest("Patient introuvable.");
+
+            if (await IsDateNonDisponibleAsync(dto.DateHeure.Date))
+                return BadRequest("Ce jour est marqué non disponible. Impossible de planifier un rendez-vous.");
+
             var e = new RendezVous
             {
                 DateHeure = dto.DateHeure,
-                Motif = dto.Motif ?? "",
-                Statut = string.IsNullOrEmpty(dto.Statut) ? "planifie" : dto.Statut,
+                Motif = NormalizeMotif(dto.Motif),
+                Statut = string.IsNullOrWhiteSpace(dto.Statut) ? "planifie" : dto.Statut.Trim(),
                 PatientId = dto.PatientId
             };
 
@@ -59,9 +75,12 @@ namespace PMA.Api.Controllers
             var e = await _uow.RendezVous.GetByIdAsync(id);
             if (e is null) return NotFound();
 
+            if (await IsDateNonDisponibleAsync(dto.DateHeure.Date))
+                return BadRequest("Ce jour est marqué non disponible. Impossible de planifier un rendez-vous.");
+
             e.DateHeure = dto.DateHeure;
-            e.Motif = dto.Motif ?? "";
-            e.Statut = string.IsNullOrEmpty(dto.Statut) ? "planifie" : dto.Statut;
+            e.Motif = NormalizeMotif(dto.Motif);
+            e.Statut = string.IsNullOrWhiteSpace(dto.Statut) ? "planifie" : dto.Statut.Trim();
             e.PatientId = dto.PatientId;
 
             await _uow.RendezVous.UpdateAsync(e);
@@ -92,6 +111,32 @@ namespace PMA.Api.Controllers
             Statut = r.Statut,
             PatientId = r.PatientId
         };
+
+        /// <summary>Oracle traite '' comme NULL — la colonne MOTIF est NOT NULL.</summary>
+        private static string NormalizeMotif(string? motif) =>
+            string.IsNullOrWhiteSpace(motif) ? "Consultation PMA" : motif.Trim();
+
+        private async Task<bool> IsDateNonDisponibleAsync(DateTime date)
+        {
+            if (!System.IO.File.Exists(_disponibilitesFilePath))
+                return false;
+
+            await using var stream = System.IO.File.OpenRead(_disponibilitesFilePath);
+            var raw = await JsonSerializer.DeserializeAsync<List<DisponibiliteAgendaEntryRaw>>(stream, JsonOpts) ?? [];
+
+            return raw.Any(x =>
+            {
+                var nonDispo = x.NonDisponible || (x.Confirme.HasValue && !x.Confirme.Value);
+                return nonDispo && x.Date.Date == date.Date;
+            });
+        }
+
+        private sealed class DisponibiliteAgendaEntryRaw
+        {
+            public DateTime Date { get; set; }
+            public bool NonDisponible { get; set; }
+            public bool? Confirme { get; set; }
+        }
     }
 
     // ─── DTO ────────────────────────────────────────────────────────────────────

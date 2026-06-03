@@ -155,6 +155,15 @@
   color: #6b7280;
 }
 
+.phase-date-real {
+  margin-left: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #047857;
+  font-family: inherit;
+}
+
 .daily-calendar-card {
   margin-bottom: 24px;
   padding: 24px;
@@ -481,6 +490,215 @@
   color: #6b7280;
   font-size: 0.9rem;
   margin: 4px 0 0;
+}
+
+// ── Barre d'alertes suivi patient ────────────────────────────────────────────
+.cycle-notif-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.cni-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border-left: 4px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 0.88rem;
+  transition: box-shadow 0.15s;
+
+  &[data-sev='critical'] {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+    .cni-icon { color: #ef4444; }
+  }
+  &[data-sev='warning'] {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+    .cni-icon { color: #d97706; }
+  }
+  &[data-sev='info'] {
+    border-left-color: #3b82f6;
+    background: #eff6ff;
+    .cni-icon { color: #2563eb; }
+  }
+
+  &.cni-unread {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    .cni-title { font-weight: 700; }
+  }
+}
+
+.cni-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  margin-top: 2px;
+  color: #9ca3af;
+}
+
+.cni-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cni-title {
+  color: #111827;
+  font-size: 0.88rem;
+}
+
+.cni-text {
+  color: #6b7280;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.cni-dismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.9rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  &:hover { color: #374151; background: rgba(0,0,0,0.06); }
+}
+
+.cycle-jour-notifs {
+  margin-bottom: 24px;
+  padding: 20px 24px;
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a1f36;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.cjn-day {
+  margin-bottom: 16px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.cjn-day-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.cjn-date {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.cjn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cjn-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 0.88rem;
+
+  &[data-sev='critical'] {
+    border-left: 4px solid #ef4444;
+    background: #fef2f2;
+  }
+  &[data-sev='warning'] {
+    border-left: 4px solid #f59e0b;
+    background: #fffbeb;
+  }
+  &[data-sev='info'] {
+    border-left: 4px solid #3b82f6;
+    background: #eff6ff;
+  }
+
+  &.cjn-unread strong {
+    color: #1d4ed8;
+  }
+
+  span {
+    flex: 1;
+    min-width: 12rem;
+    color: #6b7280;
+  }
+}
+
+.cjn-mark {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    background: #eff6ff;
+  }
+}
+
+.realtime-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  cursor: default;
+  white-space: nowrap;
+
+  .fa-circle {
+    font-size: 0.6rem;
+    color: #10b981;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  &.realtime-badge--on {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #6ee7b7;
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
 }
 
 @media (max-width: 768px) {

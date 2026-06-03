@@ -7,3 +7,8 @@
     </div>
   </main>
 </div>
+
+<!-- Widget Grok flottant — Secrétaire uniquement -->
+@if (roleService.role() === 'Secretaire') {
+  <app-grok-chat-widget />
+}

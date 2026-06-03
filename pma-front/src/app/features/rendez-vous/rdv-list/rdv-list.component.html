@@ -1,154 +1,158 @@
-<div class="page rz-page">
+<div class="page rz-page agenda-page">
   <div class="page-header rz-page-header">
     <div>
-      <h1>Planification des Rendez-vous</h1>
-      <p>Gérer les rendez-vous des patients</p>
+      <h1>Agenda des rendez-vous</h1>
+      <p>
+        @if (isBiologiste()) {
+          Cliquez sur une date pour la marquer non disponible
+        } @else if (isSecretaire()) {
+          Calendrier mensuel — consultez les rendez-vous planifiés
+        } @else {
+          Jours marqués non disponibles par le biologiste
+        }
+      </p>
     </div>
-    <button type="button" class="btn btn-primary" (click)="openNew()">
-      <i class="fas fa-plus"></i> Nouveau RDV
+    <button type="button" class="btn btn-secondary btn-today" (click)="goToToday()">
+      <i class="fas fa-calendar-day"></i> Aujourd'hui
     </button>
   </div>
 
-  @if (disposBiologisteLoading) {
-    <div class="bio-indispo-panel bio-indispo-panel--loading">
-      <i class="fas fa-spinner fa-spin"></i>
-      <span>Chargement des indisponibilités du biologiste…</span>
-    </div>
-  } @else if (disposBiologisteError) {
-    <div class="bio-indispo-panel bio-indispo-panel--warn bio-indispo-panel--warn-row">
-      <div class="bio-indispo-warn-body">
-        <i class="fas fa-exclamation-triangle"></i>
-        <div>
-          <strong>Calendrier du biologiste inaccessible</strong>
-          <p class="bio-indispo-warn-detail">
-            Démarrez l’API PMA (ex. port 5057), vérifiez Oracle et la chaîne
-            <code>{{ apiBaseHint }}</code>. En développement, un redémarrage de l’API applique les migrations EF (table
-            <code>BIOLOGISTE_DISPONIBILITES</code>). Vous pouvez quand même enregistrer des rendez-vous ; les alertes
-            d’indisponibilité s’afficheront après un chargement réussi.
-          </p>
-        </div>
-      </div>
-      <button type="button" class="btn btn-secondary btn-sm" (click)="reloadDisponibilitesBiologiste()">
-        <i class="fas fa-redo"></i> Réessayer
-      </button>
-    </div>
-  } @else if (joursIndisponiblesBiologiste.length > 0) {
-    <div class="bio-indispo-panel">
-      <div class="bio-indispo-head">
-        <i class="fas fa-user-md"></i>
-        <div>
-          <strong>Indisponibilités du biologiste</strong>
-          <p class="bio-indispo-sub">Ne pas planifier de rendez-vous biologiste sur ces jours (sauf urgence validée).</p>
-        </div>
-      </div>
-      <ul class="bio-indispo-list">
-        @for (k of joursIndisponiblesBiologiste; track k) {
-          <li><i class="fas fa-ban"></i> {{ labelJourIndispo(k) }}</li>
-        }
-      </ul>
-    </div>
-  } @else {
-    <div class="bio-indispo-panel bio-indispo-panel--ok">
-      <i class="fas fa-check-circle"></i>
-      <span>Aucun jour marqué indisponible : le biologiste ne bloque aucune date pour le moment. Les rendez-vous peuvent être planifiés sur n’importe quel jour (sous réserve d’accord interne).</span>
-    </div>
-  }
-
-  @if (showForm) {
-    <div class="card form-card">
-      <h2>{{ isEditMode ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous' }}</h2>
-      <form (ngSubmit)="saveRdv()">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Patient</label>
-            <select [(ngModel)]="editRdv.patientId" name="patientId" required>
-              <option [ngValue]="0" disabled>-- Sélectionner un patient --</option>
-              @for (p of patients; track p.id) {
-                <option [ngValue]="p.id">{{ p.prenom }} {{ p.nom }} ({{ p.numDossier }})</option>
-              }
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Date et heure</label>
-            <input type="datetime-local" [(ngModel)]="editRdv.dateHeure" name="dateHeure" required />
-            @if (rdvFormeSurJourIndispoBiologiste) {
-              <p class="bio-indispo-form-warn">
-                <i class="fas fa-exclamation-circle"></i>
-                Cette date correspond à un jour indisponible du biologiste.
-              </p>
-            }
-          </div>
-          <div class="form-group full-width">
-            <label>Motif</label>
-            <textarea [(ngModel)]="editRdv.motif" name="motif" rows="3" placeholder="Motif du rendez-vous"></textarea>
-            <div class="ai-tools-row">
-              <button type="button" class="btn btn-secondary btn-sm" (click)="suggestMotif()" [disabled]="aiMotifLoading">
-                <i class="fas fa-wand-magic-sparkles"></i> Auto-completer (IA)
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" (click)="reformulateMotif()" [disabled]="aiMotifLoading">
-                <i class="fas fa-pen-fancy"></i> Reformuler
-              </button>
-              @if (aiMotifLoading) {
-                <span class="ai-status"><i class="fas fa-spinner fa-spin"></i> Assistant en cours...</span>
-              }
-            </div>
-            @if (aiMotifError) {
-              <p class="ai-error">{{ aiMotifError }}</p>
-            }
-            @if (aiMotifSuggestions.length > 0) {
-              <div class="ai-suggestions">
-                @for (s of aiMotifSuggestions; track s) {
-                  <button type="button" class="ai-chip" (click)="applyMotifSuggestion(s)">{{ s }}</button>
-                }
-              </div>
-            }
-          </div>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" (click)="showForm = false; isEditMode = false">Annuler</button>
-          <button type="submit" class="btn btn-primary">{{ isEditMode ? 'Enregistrer' : 'Planifier' }}</button>
-        </div>
-      </form>
-    </div>
-  }
-
   @if (loading) {
     <div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
-  } @else if (rendezVous.length === 0) {
-    <div class="empty-state">
-      <i class="fas fa-calendar-alt"></i>
-      <p>Aucun rendez-vous planifié</p>
-    </div>
   } @else {
-    <div class="rz-rdv-stack">
-      @for (grp of groupedRdv; track grp.key) {
-        <div>
-          <div class="rz-rdv-day-head">
-            <i class="fas fa-calendar"></i>
-            <h3>{{ grp.label }}</h3>
-          </div>
-          <div class="rz-rdv-grid">
-            @for (rdv of grp.items; track rdv.id) {
-              <div class="rz-rdv-card">
-                <span class="rz-rdv-time">{{ rdv.dateHeure | date:'HH:mm' }}</span>
-                <div class="rz-rdv-body">
-                  <span class="rz-rdv-name">{{ getPatientName(rdv.patientId) }}</span>
-                  <p class="rz-rdv-motif">{{ rdv.motif || '—' }}</p>
-                </div>
-                <span [class]="'rz-status-badge rz-status-badge--' + statutClass(rdv.statut)">{{ rdv.statut }}</span>
-                <div class="rz-row-aside">
-                  <button type="button" class="btn-icon" (click)="openEdit(rdv)" title="Modifier">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button type="button" class="btn-icon btn-danger" (click)="deleteRdv(rdv.id)" title="Supprimer">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
+    <section class="agenda-calendar-card">
+      <div class="agenda-cal-toolbar">
+        <button type="button" class="btn-icon" (click)="prevMonth()" title="Mois précédent">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <h2 class="agenda-cal-month">{{ monthLabel }}</h2>
+        <button type="button" class="btn-icon" (click)="nextMonth()" title="Mois suivant">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <div class="agenda-cal-legend-inline">
+        <span class="legend-chip decision-indisponible">Non disponible</span>
+        <span class="legend-chip decision-rdv">Rendez-vous planifiés</span>
+      </div>
+
+      <div class="agenda-cal-grid">
+        @for (wd of weekdays; track wd) {
+          <div class="agenda-cal-weekday">{{ wd }}</div>
+        }
+        @for (cell of calendarCells; track cell.dateKey) {
+          <button
+            type="button"
+            class="agenda-cal-cell"
+            [class.outside]="!cell.inMonth"
+            [class.today]="cell.isToday"
+            [class.selected]="cell.isSelected"
+            [class.indisponible]="cell.summary.css === 'decision-indisponible'"
+            [class.has-rdv]="cell.rdvs.length > 0"
+            (click)="selectDay(cell.dateKey)"
+          >
+            <span class="agenda-cal-day">{{ cell.day }}</span>
+            @if (cell.summary.label) {
+              <span class="agenda-cal-result" [class]="cell.summary.css">
+                {{ cell.summary.label }}
+              </span>
             }
-          </div>
-        </div>
-      }
-    </div>
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  @if (showDayPanel()) {
+    <div class="agenda-overlay" (click)="closeDayPanel()"></div>
+    <aside class="agenda-day-drawer" role="dialog" aria-labelledby="day-panel-title" (click)="$event.stopPropagation()">
+      <div class="agenda-drawer-head">
+        <h3 id="day-panel-title">{{ selectedDayLabel }}</h3>
+        <button type="button" class="btn-icon" (click)="closeDayPanel()" title="Fermer">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="agenda-drawer-body">
+        <section class="agenda-availability-block">
+          <h4><i class="fas fa-user-md"></i> Disponibilité</h4>
+
+          @if (isBiologiste()) {
+            <button
+              type="button"
+              class="btn-indisponible"
+              [class.active]="selectedDayNonDisponible"
+              [disabled]="savingAvailability"
+              (click)="toggleNonDisponible()"
+            >
+              <i class="fas fa-ban"></i>
+              {{ selectedDayNonDisponible ? 'Rendre disponible' : 'Marquer non disponible' }}
+            </button>
+          } @else {
+            @if (selectedDayNonDisponible) {
+              <span class="agenda-cal-result agenda-drawer-badge decision-indisponible">
+                <i class="fas fa-ban"></i> Non disponible
+              </span>
+            } @else {
+              <p class="agenda-drawer-available">
+                <i class="fas fa-check"></i> Jour disponible
+              </p>
+            }
+          }
+        </section>
+
+        <section class="agenda-rdv-section">
+          <h4><i class="fas fa-clock"></i> Rendez-vous planifiés</h4>
+
+          @if (selectedDayRdv.length === 0) {
+            <p class="agenda-drawer-empty">Aucun rendez-vous ce jour-là.</p>
+          } @else {
+            <ul class="agenda-drawer-list">
+              @for (rdv of selectedDayRdv; track rdv.id) {
+                <li class="agenda-drawer-item">
+                  <div class="agenda-drawer-item-main">
+                    <span class="agenda-drawer-time">{{ rdv.dateHeure | date:'HH:mm' }}</span>
+                    <strong>{{ getPatientName(rdv.patientId) }}</strong>
+                    <span class="agenda-drawer-motif">{{ rdv.motif || '—' }}</span>
+                  </div>
+                  @if (isSecretaire()) {
+                    <div class="agenda-drawer-item-actions">
+                      <button
+                        type="button"
+                        class="btn-icon"
+                        title="Modifier"
+                        (click)="modifierRdv(rdv.id)"
+                      >
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-icon btn-icon-danger"
+                        title="Supprimer"
+                        (click)="deleteRdv(rdv.id)"
+                      >
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (isSecretaire()) {
+            @if (selectedDayNonDisponible) {
+              <p class="agenda-drawer-blocked">
+                <i class="fas fa-ban"></i> Planification impossible — jour non disponible.
+              </p>
+            } @else {
+              <button type="button" class="btn btn-primary btn-planifier" (click)="planifierRdv()">
+                <i class="fas fa-calendar-plus"></i> Planifier un rendez-vous
+              </button>
+            }
+          }
+        </section>
+      </div>
+    </aside>
   }
 </div>

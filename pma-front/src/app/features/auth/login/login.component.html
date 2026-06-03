@@ -1,9 +1,12 @@
 <div class="login-page">
   <div class="login-card">
+
     <div class="login-header">
-      <i class="fas fa-heartbeat"></i>
-      <h1>PMA</h1>
-      <p>Plateforme de Médecine Assistée</p>
+      <div class="login-logo">
+        <i class="fas fa-heartbeat"></i>
+      </div>
+      <h1>Connexion</h1>
+      <p>Système de gestion PMA — accès sécurisé</p>
     </div>
 
     <form (ngSubmit)="onLogin()" class="login-form">
@@ -14,21 +17,27 @@
         </div>
       }
 
+      <!-- Sélection du profil -->
       <div class="form-group">
-        <label for="identifiant">Identifiant</label>
-        <div class="input-wrapper">
-          <i class="fas fa-user"></i>
-          <input
-            id="identifiant"
-            type="text"
+        <label for="role">Profil utilisateur</label>
+        <div class="select-wrapper">
+          <i class="fas fa-id-badge select-icon"></i>
+          <select
+            id="role"
             [(ngModel)]="identifiant"
-            name="identifiant"
-            placeholder="Votre identifiant"
-            autocomplete="username"
-          />
+            name="role"
+            (ngModelChange)="onRoleChange($event)"
+          >
+            <option value="" disabled selected>— Sélectionnez votre profil —</option>
+            @for (c of comptes; track c.identifiant) {
+              <option [value]="c.identifiant">{{ c.label }}</option>
+            }
+          </select>
+          <i class="fas fa-chevron-down select-arrow"></i>
         </div>
       </div>
 
+      <!-- Mot de passe -->
       <div class="form-group">
         <label for="password">Mot de passe</label>
         <div class="input-wrapper">
@@ -38,21 +47,24 @@
             type="password"
             [(ngModel)]="password"
             name="password"
-            placeholder="Votre mot de passe"
+            placeholder="••••••••"
             autocomplete="current-password"
           />
         </div>
       </div>
 
-      <button type="submit" class="btn-login" [disabled]="loading">
+      <button type="submit" class="btn-login" [disabled]="loading || !identifiant">
         @if (loading) {
-          <i class="fas fa-spinner fa-spin"></i>
-          Connexion...
+          <i class="fas fa-spinner fa-spin"></i> Connexion en cours…
         } @else {
-          <i class="fas fa-sign-in-alt"></i>
-          Se connecter
+          <i class="fas fa-sign-in-alt"></i> Se connecter
         }
       </button>
     </form>
+
+    <p class="login-footer">
+      <i class="fas fa-shield-alt"></i>
+      Accès réservé au personnel autorisé
+    </p>
   </div>
 </div>

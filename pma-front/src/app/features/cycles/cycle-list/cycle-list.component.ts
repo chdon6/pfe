@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 import { CommonModule } from '@angular/common';
@@ -10,20 +10,26 @@ import { catchError } from 'rxjs/operators';
 import { CyclePmaService } from '../../../core/services/cycle-pma.service';
 import { PatientService } from '../../../core/services/patient.service';
 import { RendezVousService } from '../../../core/services/rendez-vous.service';
-import { PmaCyclePhaseService, PMA_TOTAL_STEPS, type JourPhaseCalendrier } from '../../../core/services/pma-cycle-phase.service';
+import { CycleSignalRService } from '../../../core/services/cycle-signalr.service';
+import { PmaCyclePhaseService, type JourPhaseCalendrier } from '../../../core/services/pma-cycle-phase.service';
 import { PmaCycleNotificationsService } from '../../../core/services/pma-cycle-notifications.service';
 import { RoleService } from '../../../core/services/role.service';
-import { CyclePma, Patient, RendezVous } from '../../../core/models';
+import { CyclePma, CycleEtapeHistorique, Patient, RendezVous } from '../../../core/models';
 import {
   resumeParcoursPatientDossier,
-  typeActePmaEstParcoursLaboStockageSeul,
-  typeActePmaImpliqueCycleAmp
+  typeActePmaImpliqueCycleAmp,
 } from '../../../core/constants/acte-pma-types';
+import {
+  phaseLabelsForActePma,
+  actePmaResumeCourt,
+  totalStepsForActePma,
+} from '../../../core/constants/acte-cycle-phases';
 
 interface DossierMedicalGroupe {
   patientId: number;
   label: string;
   numDossier: string;
+  typeActePma?: string | null;
   cycles: CyclePma[];
 }
 
@@ -32,9 +38,9 @@ interface DossierMedicalGroupe {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './cycle-list.component.html',
-  styleUrl: './cycle-list.component.scss'
+  styleUrl: './cycle-list.component.scss',
 })
-export class CycleListComponent implements OnInit {
+export class CycleListComponent implements OnInit, OnDestroy {
   private cycleService = inject(CyclePmaService);
   private patientService = inject(PatientService);
   private rendezVousService = inject(RendezVousService);
@@ -42,50 +48,61 @@ export class CycleListComponent implements OnInit {
   readonly phaseService = inject(PmaCyclePhaseService);
   private notifService = inject(PmaCycleNotificationsService);
   private roleSvc = inject(RoleService);
+  private signalR = inject(CycleSignalRService);
   private destroyRef = inject(DestroyRef);
 
-  readonly totalSteps = PMA_TOTAL_STEPS;
-  readonly notifs = this.notifService.items;
-  readonly unreadCount = this.notifService.unreadCount;
+  readonly groupedByJour = this.notifService.groupedByJour;
+  readonly countNotifsAujourdhui = this.notifService.countAujourdhui;
   readonly isBiologiste = computed(() => this.roleSvc.role() === 'Biologiste');
+  readonly isRealtime = signal(false);
+  showJourNotifs = true;
+  notifFilter: 'aujourdhui' | 'semaine' = 'aujourdhui';
 
   cycles: CyclePma[] = [];
   patients: Patient[] = [];
-  /** Patients ayant au moins un rendez-vous non annulé (requis pour ouvrir un cycle). */
+  private historiqueByCycleId = new Map<number, CycleEtapeHistorique[]>();
+  private rdvsActifs: RendezVous[] = [];
   private patientIdsAvecRdv = new Set<number>();
   loading = true;
+
+  searchQuery = '';
 
   showForm = false;
   newCycle = { phase: '', patientId: 0 };
   cycleFormError = '';
-  readonly phaseOptions: string[] = [
-    'Consultation initiale',
-    'Stimulation ovarienne',
-    'Monitoring folliculaire',
-    'Déclenchement',
-    'Ponction ovocytaire',
-    'Préparation spermatique',
-    'FIV classique',
-    'ICSI',
-    'Culture embryonnaire',
-    'Transfert embryonnaire',
-    'Soutien lutéal',
-    'Test de grossesse',
-  ];
 
-  panelOpen = signal(false);
-  /** Dossier médical (patient) déplié — vue biologiste */
   expandedDossierId = signal<number | null>(null);
 
   ngOnInit(): void {
     this.loadData();
+    this.connectRealtime();
+
     interval(120_000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
-        if (this.roleSvc.role() === 'Biologiste') {
+        if (!this.isRealtime()) {
           this.loadData();
         }
       });
+  }
+
+  ngOnDestroy(): void {
+    void this.signalR.leaveCyclesList();
+  }
+
+  private connectRealtime(): void {
+    this.signalR
+      .joinCyclesList()
+      .then(() => this.isRealtime.set(this.signalR.isConnected))
+      .catch(() => this.isRealtime.set(false));
+
+    this.signalR.cycleListChanged$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadData());
+
+    this.signalR.cycleUpdated$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadData());
   }
 
   loadData(): void {
@@ -93,16 +110,21 @@ export class CycleListComponent implements OnInit {
     forkJoin({
       cycles: this.cycleService.getAll().pipe(catchError(() => of<CyclePma[]>([]))),
       patients: this.patientService.getAll().pipe(catchError(() => of<Patient[]>([]))),
+      historiques: this.cycleService.getAllHistoriques().pipe(catchError(() => of<CycleEtapeHistorique[]>([]))),
       rdvs: this.rendezVousService.getAll().pipe(catchError(() => of<RendezVous[]>([]))),
     }).subscribe({
-      next: ({ cycles, patients, rdvs }) => {
+      next: ({ cycles, patients, historiques, rdvs }) => {
         this.cycles = [...cycles];
         this.patients = [...patients];
-        this.patientIdsAvecRdv = new Set(
-          rdvs
-            .filter((r) => (r.statut || '').trim().toLowerCase() !== 'annule')
-            .map((r) => r.patientId)
-        );
+        this.rdvsActifs = rdvs.filter((r) => (r.statut || '').trim().toLowerCase() !== 'annule');
+        this.historiqueByCycleId = new Map();
+        for (const h of historiques) {
+          if (!this.historiqueByCycleId.has(h.cyclePmaId)) {
+            this.historiqueByCycleId.set(h.cyclePmaId, []);
+          }
+          this.historiqueByCycleId.get(h.cyclePmaId)!.push(h);
+        }
+        this.patientIdsAvecRdv = new Set(this.rdvsActifs.map((r) => r.patientId));
         this.syncNotifications();
         this.loading = false;
       },
@@ -112,28 +134,58 @@ export class CycleListComponent implements OnInit {
     });
   }
 
+  historiqueFor(cycleId: number): CycleEtapeHistorique[] {
+    return this.historiqueByCycleId.get(cycleId) ?? [];
+  }
+
   private syncNotifications(): void {
     this.notifService.syncFromCycles(
-      this.cycles.map((c) => ({
-        cycleId: c.id,
-        patientLabel: this.getPatientName(c.patientId),
-        phase: c.phase || '',
-        step: this.phaseService.resolveStepIndex(c),
-        dateDebut: c.dateDebut,
-        statut: c.statutCycle,
-        resultatTestGrossesse: c.resultatTestGrossesse,
-      }))
+      this.cycles.map((c) => {
+        const p = this.patientFor(c.patientId);
+        const hist = this.historiqueFor(c.id);
+        return {
+          cycleId: c.id,
+          patientLabel: this.getPatientName(c.patientId),
+          phase: c.phase || '',
+          step: this.phaseService.resolveStepIndex(c, p?.typeActePma, hist),
+          dateDebut: c.dateDebut,
+          statut: c.statutCycle,
+          resultatTestGrossesse: c.resultatTestGrossesse,
+          typeActePma: p?.typeActePma,
+          historique: hist,
+          rdvs: this.rdvsActifs
+            .filter((r) => r.patientId === c.patientId)
+            .map((r) => ({
+              dateHeure: typeof r.dateHeure === 'string' ? r.dateHeure : String(r.dateHeure),
+              motif: r.motif,
+            })),
+        };
+      })
     );
   }
 
+  /** Phases proposées selon l’acte PMA du patient sélectionné. */
+  phaseOptionsForForm(): string[] {
+    const p = this.patients.find((x) => x.id === this.newCycle.patientId);
+    return phaseLabelsForActePma(p?.typeActePma);
+  }
+
+  onPatientChange(): void {
+    const opts = this.phaseOptionsForForm();
+    if (opts.length && !opts.includes(this.newCycle.phase)) {
+      this.newCycle.phase = opts[0]!;
+    }
+  }
+
   dossiersGroupes(): DossierMedicalGroupe[] {
+    const q = this.searchQuery.trim().toLowerCase();
     const map = new Map<number, CyclePma[]>();
     for (const c of this.cycles) {
       if (!map.has(c.patientId)) map.set(c.patientId, []);
       map.get(c.patientId)!.push(c);
     }
-    const rows: DossierMedicalGroupe[] = [...map.entries()].map(([patientId, list]) => {
-      const p = this.patients.find((x) => x.id === patientId);
+    let rows: DossierMedicalGroupe[] = [...map.entries()].map(([patientId, list]) => {
+      const p = this.patientFor(patientId);
       const sorted = [...list].sort(
         (a, b) => new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime()
       );
@@ -150,10 +202,47 @@ export class CycleListComponent implements OnInit {
         patientId,
         label: label.trim(),
         numDossier: p?.numDossier ?? '—',
+        typeActePma: p?.typeActePma,
         cycles: sorted,
       };
     });
+
+    if (q) {
+      rows = rows.filter((d) => {
+        if (d.label.toLowerCase().includes(q)) return true;
+        if (d.numDossier.toLowerCase().includes(q)) return true;
+        const acte = actePmaResumeCourt(d.typeActePma).toLowerCase();
+        if (acte && acte.includes(q)) return true;
+        return d.cycles.some(
+          (c) =>
+            (c.phase || '').toLowerCase().includes(q) ||
+            (c.etapeCourante || '').toLowerCase().includes(q)
+        );
+      });
+    }
+
     return rows.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  }
+
+  /** Cycles plats filtrés (vue non biologiste). */
+  cyclesFiltres(): CyclePma[] {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return this.cycles;
+    return this.cycles.filter((c) => {
+      const name = this.getPatientName(c.patientId).toLowerCase();
+      const p = this.patientFor(c.patientId);
+      const dossier = (p?.numDossier ?? '').toLowerCase();
+      return (
+        name.includes(q) ||
+        dossier.includes(q) ||
+        (c.phase || '').toLowerCase().includes(q) ||
+        (c.etapeCourante || '').toLowerCase().includes(q)
+      );
+    });
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
   }
 
   toggleDossier(patientId: number, ev?: Event): void {
@@ -162,7 +251,10 @@ export class CycleListComponent implements OnInit {
   }
 
   previewSemaine(c: CyclePma): JourPhaseCalendrier[] {
-    return this.phaseService.buildDailyCalendar(c).slice(0, 7);
+    const acte = this.patientFor(c.patientId)?.typeActePma;
+    return this.phaseService
+      .buildDailyCalendar(c, acte, this.historiqueFor(c.id))
+      .slice(0, 7);
   }
 
   resultatBadgeLabel(c: CyclePma): string {
@@ -179,22 +271,54 @@ export class CycleListComponent implements OnInit {
     return 'badge-res-attente';
   }
 
-  /** Résultat positif/négatif sans signature biologiste. */
   signatureBiologisteManquante(c: CyclePma): boolean {
     const r = c.resultatTestGrossesse;
     if (r !== 'positif' && r !== 'negatif') return false;
     return !c.resultatTestSigneLe;
   }
 
-  togglePanel(): void {
-    this.panelOpen.update((v) => !v);
+  toggleJourNotifs(): void {
+    this.showJourNotifs = !this.showJourNotifs;
   }
 
-  closePanel(): void {
-    this.panelOpen.set(false);
+  setNotifFilter(mode: 'aujourdhui' | 'semaine'): void {
+    this.notifFilter = mode;
   }
 
-  markRead(id: string): void {
+  notifsAffichees() {
+    const groups = this.groupedByJour();
+    if (this.notifFilter === 'aujourdhui') {
+      const today = this.isoToday();
+      const g = groups.filter((x) => x.jourDate === today);
+      return g.length ? g : groups.slice(0, 1);
+    }
+    return groups.slice(0, 7);
+  }
+
+  totalDossiers(): number {
+    return this.dossiersGroupes().length;
+  }
+
+  initiales(label: string): string {
+    const principal = label.split('&')[0]?.trim() ?? label;
+    const parts = principal.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase();
+    }
+    return (parts[0]?.slice(0, 2) ?? '?').toUpperCase();
+  }
+
+  acteDossier(d: DossierMedicalGroupe): string {
+    return actePmaResumeCourt(d.typeActePma) || 'Parcours PMA';
+  }
+
+  private isoToday(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  markRead(id: string, ev?: Event): void {
+    ev?.stopPropagation();
     this.notifService.markRead(id);
   }
 
@@ -202,26 +326,44 @@ export class CycleListComponent implements OnInit {
     this.notifService.markAllRead();
   }
 
-  dismissNotif(id: string, ev: Event): void {
-    ev.stopPropagation();
-    this.notifService.dismiss(id);
+  goToCycleFromNotif(cycleId: number, notifId: string, ev?: Event): void {
+    ev?.stopPropagation();
+    this.notifService.markRead(notifId);
+    this.goToCycle(cycleId);
+  }
+
+  patientFor(patientId: number): Patient | undefined {
+    return this.patients.find((x) => x.id === patientId);
   }
 
   getPatientName(patientId: number): string {
-    const p = this.patients.find((x) => x.id === patientId);
+    const p = this.patientFor(patientId);
     return p ? `${p.prenom} ${p.nom}` : `Patient #${patientId}`;
   }
 
   stepIndex(c: CyclePma): number {
-    return this.phaseService.resolveStepIndex(c);
+    const acte = this.patientFor(c.patientId)?.typeActePma;
+    return this.phaseService.resolveStepIndex(c, acte, this.historiqueFor(c.id));
+  }
+
+  totalStepsFor(c: CyclePma): number {
+    return totalStepsForActePma(this.patientFor(c.patientId)?.typeActePma);
   }
 
   progressPct(c: CyclePma): number {
-    return this.phaseService.progressPercent(this.stepIndex(c));
+    const acte = this.patientFor(c.patientId)?.typeActePma;
+    return this.phaseService.progressPercent(this.stepIndex(c), acte);
   }
 
   badgeActe(c: CyclePma): string {
-    return this.phaseService.badgeTypeActe(undefined, c.phase || '');
+    const p = this.patientFor(c.patientId);
+    return this.phaseService.badgeTypeActe(p?.typeActePma ?? undefined, c.phase || '');
+  }
+
+  trackLabels(c: CyclePma): { start: string; end: string } {
+    const steps = this.phaseService.getSteps(this.patientFor(c.patientId)?.typeActePma);
+    if (steps.length === 0) return { start: '—', end: '—' };
+    return { start: steps[0]!.label, end: steps[steps.length - 1]!.label };
   }
 
   dateIso(c: CyclePma): string {
@@ -243,15 +385,41 @@ export class CycleListComponent implements OnInit {
     this.showForm = true;
   }
 
-  /** Patients éligibles à la création d'un cycle (au moins un RDV non annulé). */
+  /**
+   * Patients éligibles à l’ouverture d’un cycle :
+   * acte AMP avec cycle (FIV, ICSI, IIU, etc.), au moins un RDV actif, les plus récents en premier.
+   */
   patientsEligiblesAuCycle(): Patient[] {
-    return this.patients.filter((p) => this.patientIdsAvecRdv.has(p.id));
+    return this.patients
+      .filter(
+        (p) =>
+          this.patientIdsAvecRdv.has(p.id) && typeActePmaImpliqueCycleAmp(p.typeActePma)
+      )
+      .sort((a, b) => this.ordreNouveautePatient(b) - this.ordreNouveautePatient(a));
+  }
+
+  /** Plus l’id est élevé, plus le dossier est considéré comme récent (enregistrement en base). */
+  private ordreNouveautePatient(p: Patient): number {
+    return p.id;
+  }
+
+  estPatientNouveau(p: Patient): boolean {
+    const eligibles = this.patientsEligiblesAuCycle();
+    if (eligibles.length === 0) return false;
+    const seuil = Math.max(...eligibles.map((x) => x.id));
+    return p.id >= seuil - 2;
   }
 
   saveCycle(): void {
     this.cycleFormError = '';
     if (!this.newCycle.patientId) {
       this.cycleFormError = 'Sélectionnez un patient.';
+      return;
+    }
+    const pSel = this.patientFor(this.newCycle.patientId);
+    if (!pSel || !typeActePmaImpliqueCycleAmp(pSel.typeActePma)) {
+      this.cycleFormError =
+        'Ce dossier n’a pas d’acte nécessitant un cycle PMA (FIV, ICSI, insémination, etc.).';
       return;
     }
     if (!this.patientIdsAvecRdv.has(this.newCycle.patientId)) {
@@ -263,13 +431,6 @@ export class CycleListComponent implements OnInit {
     if (!phase) {
       this.cycleFormError = 'La phase du cycle PMA est obligatoire.';
       return;
-    }
-    const pSel = this.patients.find((x) => x.id === this.newCycle.patientId);
-    if (pSel && typeActePmaEstParcoursLaboStockageSeul(pSel.typeActePma)) {
-      const ok = confirm(
-        'Ce dossier est orienté laboratoire / conservation (ex. cryoconservation de sperme) : un cycle PMA de stimulation n’est en général pas nécessaire. Voulez-vous quand même créer un cycle ?'
-      );
-      if (!ok) return;
     }
     const cycle: Record<string, unknown> = {
       phase,
@@ -315,28 +476,16 @@ export class CycleListComponent implements OnInit {
     return 'Impossible de créer le cycle. Réessayez ou vérifiez les données.';
   }
 
-  /** Rappel métier sous le formulaire « Nouveau cycle ». */
   parcoursDossierPatient(patientId: number): string {
-    const p = this.patients.find((x) => x.id === patientId);
+    const p = this.patientFor(patientId);
     return p ? resumeParcoursPatientDossier(p.typeActePma) : '';
   }
 
-  patientActeImpliqueCycle(patientId: number): boolean {
-    const p = this.patients.find((x) => x.id === patientId);
-    return typeActePmaImpliqueCycleAmp(p?.typeActePma);
-  }
-
-  patientActeLaboSeul(patientId: number): boolean {
-    const p = this.patients.find((x) => x.id === patientId);
-    return typeActePmaEstParcoursLaboStockageSeul(p?.typeActePma);
-  }
-
-  /** Libellé court pour la liste déroulante (acte dossier). */
   libelleOptionPatient(p: Patient): string {
     const base = `${p.prenom} ${p.nom}`.trim();
-    if (typeActePmaImpliqueCycleAmp(p.typeActePma)) return `${base} (parcours AMP — cycle indiqué)`;
-    if (typeActePmaEstParcoursLaboStockageSeul(p.typeActePma)) return `${base} (labo / stockage — cycle souvent inutile)`;
-    return base;
+    const acte = actePmaResumeCourt(p.typeActePma) || 'Parcours AMP';
+    const prefix = this.estPatientNouveau(p) ? '★ Nouveau · ' : '';
+    return `${prefix}${base} — ${acte}`;
   }
 
   deleteCycle(id: number, ev?: Event): void {

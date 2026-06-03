@@ -23,7 +23,6 @@ export const routes: Routes = [
         canActivate: [roleGuard('Technicien', 'Secretaire', 'Biologiste', 'Administrateur')],
         loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
       },
-
       // Secrétaire uniquement (accueil dossiers)
       {
         path: 'patients',
@@ -46,15 +45,21 @@ export const routes: Routes = [
         loadComponent: () => import('./features/patients/patient-form/patient-form.component').then(m => m.PatientFormComponent)
       },
       {
-        path: 'rendez-vous',
+        path: 'rendez-vous/nouveau',
         canActivate: [roleGuard('Secretaire')],
-        loadComponent: () => import('./features/rendez-vous/rdv-list/rdv-list.component').then(m => m.RdvListComponent)
+        loadComponent: () =>
+          import('./features/rendez-vous/rdv-form/rdv-form.component').then((m) => m.RdvFormComponent),
       },
       {
-        path: 'agenda-biologiste',
-        canActivate: [roleGuard('Biologiste')],
+        path: 'rendez-vous/:id/edit',
+        canActivate: [roleGuard('Secretaire')],
         loadComponent: () =>
-          import('./features/agenda-biologiste/agenda-biologiste.component').then((m) => m.AgendaBiologisteComponent),
+          import('./features/rendez-vous/rdv-form/rdv-form.component').then((m) => m.RdvFormComponent),
+      },
+      {
+        path: 'rendez-vous',
+        canActivate: [roleGuard('Secretaire', 'Biologiste')],
+        loadComponent: () => import('./features/rendez-vous/rdv-list/rdv-list.component').then(m => m.RdvListComponent)
       },
       {
         path: 'consentements',

@@ -1,93 +1,107 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { forkJoin } from 'rxjs';
+import { Component, OnInit, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { RendezVousService } from '../../../core/services/rendez-vous.service';
 import { PatientService } from '../../../core/services/patient.service';
-import { BiologisteDisponibilitesService } from '../../../core/services/biologiste-disponibilites.service';
-import { AiAssistantService } from '../../../core/services/ai-assistant.service';
-import { RendezVous, Patient } from '../../../core/models';
-import { environment } from '../../../../environments/environment';
+import { DisponibiliteAgendaService } from '../../../core/services/disponibilite-agenda.service';
+import { RoleService } from '../../../core/services/role.service';
+import { RendezVous, Patient, DisponibiliteAgenda } from '../../../core/models';
+
+interface CalendarCell {
+  dateKey: string;
+  day: number;
+  inMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  rdvs: RendezVous[];
+  summary: { label: string; css: string };
+}
+
+const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
 
 @Component({
   selector: 'app-rdv-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './rdv-list.component.html',
-  styleUrl: './rdv-list.component.scss'
+  styleUrl: './rdv-list.component.scss',
 })
 export class RdvListComponent implements OnInit {
   private rdvService = inject(RendezVousService);
   private patientService = inject(PatientService);
-  private biologisteDispos = inject(BiologisteDisponibilitesService);
-  private aiAssistant = inject(AiAssistantService);
+  private disponibiliteService = inject(DisponibiliteAgendaService);
+  private roleService = inject(RoleService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
-  rendezVous: RendezVous[] = [];
+  readonly weekdays = WEEKDAYS;
+  readonly isBiologiste = computed(() => this.roleService.role() === 'Biologiste');
+  readonly isSecretaire = computed(() => this.roleService.role() === 'Secretaire');
+
+  allRdv: RendezVous[] = [];
+  disponibilites: DisponibiliteAgenda[] = [];
   patients: Patient[] = [];
-  /** Clés yyyy-MM-dd ; false = biologiste indisponible. */
-  biologisteDisponibilites: Record<string, boolean> = {};
-  disposBiologisteLoading = false;
-  disposBiologisteError = false;
   loading = true;
+  savingAvailability = false;
 
-  showForm = false;
-  isEditMode = false;
-  editRdv: RendezVous = { id: 0, dateHeure: '', motif: '', statut: 'planifie', patientId: 0 };
-  aiMotifLoading = false;
-  aiMotifError = '';
-  aiMotifSuggestions: string[] = [];
-
-  /** Affiché en aide si le GET disponibilités échoue (URL API attendue). */
-  readonly apiBaseHint = environment.apiUrl;
+  calendarMonth = signal(new Date());
+  selectedDate = signal<string | null>(null);
+  showDayPanel = signal(false);
 
   ngOnInit(): void {
-    this.loadData();
+    this.loadAgenda();
   }
 
-  loadData(): void {
+  loadAgenda(): void {
     this.loading = true;
-    this.loadDisponibilitesBiologiste();
-    this.patientService.getAll().subscribe(p => (this.patients = p));
-    this.rdvService.getAll().subscribe({
-      next: (data) => {
-        this.rendezVous = data;
-        this.loading = false;
-      },
-      error: () => (this.loading = false)
-    });
-  }
-
-  /** Chargement seul du calendrier biologiste (GET /api/biologiste-disponibilites). */
-  loadDisponibilitesBiologiste(): void {
-    this.disposBiologisteLoading = true;
-    this.disposBiologisteError = false;
-    this.biologisteDispos.get().subscribe({
-      next: (m) => {
-        this.biologisteDisponibilites = m ?? {};
-        this.disposBiologisteLoading = false;
+    forkJoin({
+      patients: this.patientService.getAll(),
+      rdvs: this.rdvService.getAll(),
+    }).subscribe({
+      next: ({ patients, rdvs }) => {
+        this.patients = patients;
+        this.allRdv = rdvs;
+        this.loadDisponibilitesForMonth(() => this.applyQueryParams());
       },
       error: () => {
-        this.biologisteDisponibilites = {};
-        this.disposBiologisteLoading = false;
-        this.disposBiologisteError = true;
+        this.loadDisponibilitesForMonth(() => this.applyQueryParams());
       },
     });
   }
 
-  reloadDisponibilitesBiologiste(): void {
-    this.loadDisponibilitesBiologiste();
+  private applyQueryParams(): void {
+    const dateParam = this.route.snapshot.queryParamMap.get('date');
+    if (dateParam) {
+      this.openDay(dateParam);
+    }
   }
 
-  /** Jours marqués indisponibles par le biologiste (tri chronologique). */
-  get joursIndisponiblesBiologiste(): string[] {
-    return Object.entries(this.biologisteDisponibilites)
-      .filter(([, dispo]) => dispo === false)
-      .map(([k]) => k)
-      .sort();
+  private loadDisponibilitesForMonth(done?: () => void): void {
+    const month = this.calendarMonth();
+    const from = this.toInputDate(new Date(month.getFullYear(), month.getMonth(), 1));
+    const to = this.toInputDate(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    this.disponibiliteService.getAll(from, to).subscribe({
+      next: (list) => {
+        this.disponibilites = list;
+        this.loading = false;
+        done?.();
+      },
+      error: () => {
+        this.loading = false;
+        done?.();
+      },
+    });
   }
 
-  labelJourIndispo(isoDateKey: string): string {
-    const d = new Date(`${isoDateKey}T12:00:00`);
-    return d.toLocaleDateString('fr-FR', {
+  get monthLabel(): string {
+    return this.calendarMonth().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  }
+
+  get selectedDayLabel(): string {
+    const key = this.selectedDate();
+    if (!key) return '';
+    return new Date(key + 'T12:00:00').toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -95,159 +109,195 @@ export class RdvListComponent implements OnInit {
     });
   }
 
-  /** True si la date/heure du formulaire tombe un jour indisponible. */
-  get rdvFormeSurJourIndispoBiologiste(): boolean {
-    const dh = this.editRdv.dateHeure;
-    if (!dh || !dh.trim()) return false;
-    const k = this.dayKey(dh);
-    return this.biologisteDisponibilites[k] === false;
+  get selectedDayNonDisponible(): boolean {
+    const key = this.selectedDate();
+    if (!key) return false;
+    return this.disponibilites.some((x) => x.date === key && x.nonDisponible);
   }
 
-  /** Rendez-vous triés par date, regroupés par jour (affichage type agenda). */
-  get groupedRdv(): { key: string; label: string; items: RendezVous[] }[] {
-    const sorted = [...this.rendezVous].sort(
-      (a, b) => new Date(a.dateHeure).getTime() - new Date(b.dateHeure).getTime()
-    );
-    const map = new Map<string, RendezVous[]>();
-    for (const r of sorted) {
-      const key = this.dayKey(r.dateHeure);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
+  get selectedDayRdv(): RendezVous[] {
+    const key = this.selectedDate();
+    if (!key) return [];
+    return this.allRdv
+      .filter((r) => this.dayKey(r.dateHeure) === key)
+      .sort((a, b) => new Date(a.dateHeure).getTime() - new Date(b.dateHeure).getTime());
+  }
+
+  get calendarCells(): CalendarCell[] {
+    const month = this.calendarMonth();
+    const year = month.getFullYear();
+    const m = month.getMonth();
+    const first = new Date(year, m, 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    const todayKey = this.toInputDate(new Date());
+    const selected = this.selectedDate();
+    const cells: CalendarCell[] = [];
+
+    for (let i = 0; i < startOffset; i++) {
+      const d = new Date(year, m, -startOffset + i + 1);
+      cells.push(this.makeCell(d.getDate(), this.toInputDate(d), false, todayKey, selected));
     }
-    return Array.from(map.entries()).map(([key, items]) => ({
-      key,
-      label: this.formatDayLabel(items[0].dateHeure),
-      items
-    }));
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      cells.push(this.makeCell(day, key, true, todayKey, selected));
+    }
+
+    while (cells.length % 7 !== 0) {
+      const last = cells[cells.length - 1];
+      const d = new Date(last.dateKey + 'T12:00:00');
+      d.setDate(d.getDate() + 1);
+      cells.push(this.makeCell(d.getDate(), this.toInputDate(d), false, todayKey, selected));
+    }
+
+    return cells;
+  }
+
+  private makeCell(
+    day: number,
+    dateKey: string,
+    inMonth: boolean,
+    todayKey: string,
+    selected: string | null
+  ): CalendarCell {
+    const rdvs = this.allRdv.filter((r) => this.dayKey(r.dateHeure) === dateKey);
+    return {
+      day,
+      dateKey,
+      inMonth,
+      isToday: dateKey === todayKey,
+      isSelected: dateKey === selected,
+      rdvs,
+      summary: this.summarizeDay(dateKey, rdvs.length),
+    };
+  }
+
+  private summarizeDay(dateKey: string, rdvCount: number): { label: string; css: string } {
+    if (this.isDayNonDisponible(dateKey)) {
+      return { label: 'Non disponible', css: 'decision-indisponible' };
+    }
+    if (rdvCount > 0) {
+      return { label: `${rdvCount} RDV`, css: 'decision-rdv' };
+    }
+    return { label: '', css: '' };
+  }
+
+  prevMonth(): void {
+    const d = new Date(this.calendarMonth());
+    d.setMonth(d.getMonth() - 1);
+    this.calendarMonth.set(d);
+    this.loadDisponibilitesForMonth();
+  }
+
+  nextMonth(): void {
+    const d = new Date(this.calendarMonth());
+    d.setMonth(d.getMonth() + 1);
+    this.calendarMonth.set(d);
+    this.loadDisponibilitesForMonth();
+  }
+
+  goToToday(): void {
+    const today = new Date();
+    this.calendarMonth.set(new Date(today.getFullYear(), today.getMonth(), 1));
+    this.openDay(this.toInputDate(today));
+    this.loadDisponibilitesForMonth();
+  }
+
+  selectDay(dateKey: string): void {
+    this.openDay(dateKey);
+  }
+
+  private openDay(dateKey: string): void {
+    this.selectedDate.set(dateKey);
+    this.showDayPanel.set(true);
+    const d = new Date(dateKey + 'T12:00:00');
+    const cur = this.calendarMonth();
+    if (d.getMonth() !== cur.getMonth() || d.getFullYear() !== cur.getFullYear()) {
+      this.calendarMonth.set(new Date(d.getFullYear(), d.getMonth(), 1));
+      this.loadDisponibilitesForMonth();
+    }
+  }
+
+  closeDayPanel(): void {
+    this.showDayPanel.set(false);
+  }
+
+  getPatientName(patientId: number): string {
+    const p = this.patients.find((x) => x.id === patientId);
+    return p ? `${p.prenom} ${p.nom}` : '-';
+  }
+
+  planifierRdv(): void {
+    const dateKey = this.selectedDate() || this.toInputDate(new Date());
+    if (this.isDayNonDisponible(dateKey)) {
+      alert('Ce jour est marqué non disponible par le biologiste. Impossible de planifier un rendez-vous.');
+      return;
+    }
+    void this.router.navigate(['/rendez-vous/nouveau'], {
+      queryParams: { date: dateKey },
+    });
+  }
+
+  modifierRdv(id: number): void {
+    void this.router.navigate(['/rendez-vous', id, 'edit']);
+  }
+
+  deleteRdv(id: number): void {
+    if (!confirm('Supprimer ce rendez-vous ?')) return;
+    this.rdvService.delete(id).subscribe({
+      next: () => this.reloadRdvs(),
+      error: () => alert('Impossible de supprimer le rendez-vous.'),
+    });
+  }
+
+  toggleNonDisponible(): void {
+    if (!this.isBiologiste()) return;
+    const date = this.selectedDate();
+    if (!date) return;
+
+    const next = !this.selectedDayNonDisponible;
+    this.savingAvailability = true;
+    this.disponibiliteService.setNonDisponible(date, next).subscribe({
+      next: () => {
+        const idx = this.disponibilites.findIndex((x) => x.date === date);
+        if (next) {
+          const entry: DisponibiliteAgenda = {
+            id: idx >= 0 ? this.disponibilites[idx].id : Date.now(),
+            date,
+            nonDisponible: true,
+            modifieLe: new Date().toISOString(),
+          };
+          if (idx >= 0) this.disponibilites[idx] = entry;
+          else this.disponibilites = [...this.disponibilites, entry];
+        } else if (idx >= 0) {
+          this.disponibilites = this.disponibilites.filter((x) => x.date !== date);
+        }
+        this.savingAvailability = false;
+      },
+      error: () => (this.savingAvailability = false),
+    });
+  }
+
+  private reloadRdvs(): void {
+    this.rdvService.getAll().subscribe((data) => (this.allRdv = data));
+  }
+
+  private isDayNonDisponible(dateKey: string): boolean {
+    return this.disponibilites.some((x) => x.date === dateKey && x.nonDisponible);
   }
 
   private dayKey(iso: string): string {
-    const d = new Date(iso);
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(iso)) {
+      return iso.slice(0, 10);
+    }
+    return this.toInputDate(new Date(iso));
+  }
+
+  private toInputDate(d: Date): string {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
-  }
-
-  private formatDayLabel(iso: string): string {
-    const d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  }
-
-  /** Suffixe pour .rz-status-badge--* (ex. planifie, confirme). */
-  statutClass(statut: string): string {
-    return statut
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, '-');
-  }
-
-  getPatientName(patientId: number): string {
-    const p = this.patients.find(x => x.id === patientId);
-    return p ? `${p.prenom} ${p.nom}` : '-';
-  }
-
-  openNew(): void {
-    this.isEditMode = false;
-    this.editRdv = { id: 0, dateHeure: '', motif: '', statut: 'planifie', patientId: 0 };
-    this.resetAiMotifState();
-    this.showForm = true;
-  }
-
-  openEdit(rdv: RendezVous): void {
-    this.isEditMode = true;
-    this.editRdv = { ...rdv };
-    this.resetAiMotifState();
-    this.showForm = true;
-  }
-
-  private resetAiMotifState(): void {
-    this.aiMotifLoading = false;
-    this.aiMotifError = '';
-    this.aiMotifSuggestions = [];
-  }
-
-  suggestMotif(): void {
-    this.aiMotifError = '';
-    if (!this.editRdv.patientId) {
-      this.aiMotifError = 'Selectionnez un patient avant de lancer la suggestion IA.';
-      return;
-    }
-
-    this.aiMotifLoading = true;
-    const patient = this.patients.find((p) => p.id === this.editRdv.patientId);
-    this.aiAssistant
-      .suggestRdvMotif({
-        patientId: this.editRdv.patientId,
-        patientDisplayName: patient ? `${patient.prenom} ${patient.nom}` : undefined,
-        dateHeure: this.editRdv.dateHeure || undefined,
-        currentMotif: this.editRdv.motif || undefined
-      })
-      .subscribe({
-        next: ({ suggestions }) => {
-          this.aiMotifSuggestions = suggestions ?? [];
-          if (!this.editRdv.motif && this.aiMotifSuggestions.length > 0) {
-            this.editRdv.motif = this.aiMotifSuggestions[0];
-          }
-          this.aiMotifLoading = false;
-        },
-        error: () => {
-          this.aiMotifLoading = false;
-          this.aiMotifError = "Impossible de recuperer une suggestion pour l'instant.";
-        }
-      });
-  }
-
-  reformulateMotif(): void {
-    this.aiMotifError = '';
-    if (!this.editRdv.motif.trim()) {
-      this.aiMotifError = 'Saisissez un motif avant la reformulation.';
-      return;
-    }
-
-    this.aiMotifLoading = true;
-    this.aiAssistant.reformulateNote(this.editRdv.motif).subscribe({
-      next: ({ reformulatedNote }) => {
-        this.editRdv.motif = reformulatedNote;
-        this.aiMotifLoading = false;
-      },
-      error: () => {
-        this.aiMotifLoading = false;
-        this.aiMotifError = "La reformulation IA a echoue.";
-      }
-    });
-  }
-
-  applyMotifSuggestion(value: string): void {
-    this.editRdv.motif = value;
-  }
-
-  saveRdv(): void {
-    if (this.isEditMode) {
-      this.rdvService.update(this.editRdv).subscribe(() => {
-        this.showForm = false;
-        this.isEditMode = false;
-        this.loadData();
-      });
-      return;
-    }
-
-    this.rdvService.create(this.editRdv).subscribe(() => {
-      this.showForm = false;
-      this.isEditMode = false;
-      this.loadData();
-    });
-  }
-
-  deleteRdv(id: number): void {
-    if (confirm('Supprimer ce rendez-vous ?')) {
-      this.rdvService.delete(id).subscribe(() => this.loadData());
-    }
   }
 }

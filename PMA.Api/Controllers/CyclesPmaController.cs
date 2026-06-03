@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PMA.Api.Entites;
+using PMA.Api.Hubs;
 using PMA.Api.Interfaces;
 
 namespace PMA.Api.Controllers;
 
 [ApiController]
 [Route("api/cyclespma")]
-public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
+public class CyclesPmaController(IUnitOfWork uow, IHubContext<CycleHub> hub) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CyclePmaDto>>> GetAll()
@@ -60,6 +62,22 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
         {
             return BadRequest("La phase du cycle PMA est obligatoire. Merci de choisir une phase valide.");
         }
+
+        await uow.CycleEtapesHistorique.AddAsync(new CycleEtapeHistorique
+        {
+            Etape = e.Phase,
+            Statut = "en_cours",
+            DateEtape = now,
+            Observation = "Ouverture du cycle PMA",
+            CyclePmaId = e.Id,
+            UserId = null
+        });
+        e.EtapeCourante = e.Phase;
+        e.StatutCycle = "en_cours";
+        await uow.CyclesPma.UpdateAsync(e);
+        await uow.SaveChangesAsync();
+
+        await NotifyCycleChanged(e.Id);
         return CreatedAtAction(nameof(GetById), new { id = e.Id }, new { id = e.Id });
     }
 
@@ -78,23 +96,27 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
         if (e is null) return NotFound();
         await uow.CyclesPma.DeleteAsync(e);
         await uow.SaveChangesAsync();
+        await hub.Clients.Group(CycleHub.CyclesListGroup).SendAsync("CycleListChanged");
         return NoContent();
+    }
+
+    /// <summary>Tous les jalons enregistrés (agenda global, calendriers).</summary>
+    [HttpGet("historiques")]
+    public async Task<ActionResult<IReadOnlyList<CycleEtapeHistoriqueDto>>> GetAllHistoriques()
+    {
+        await EnsureHistoriqueFromCyclesAsync();
+        var list = await uow.CycleEtapesHistorique.ListAsync();
+        return Ok(list.OrderBy(h => h.DateEtape).Select(MapHistorique).ToList());
     }
 
     [HttpGet("{id:int}/historique")]
     public async Task<ActionResult<IReadOnlyList<CycleEtapeHistoriqueDto>>> GetHistorique(int id)
     {
+        var cycle = await uow.CyclesPma.GetByIdAsync(id);
+        if (cycle is null) return NotFound();
+        await EnsureHistoriqueForCycleAsync(cycle);
         var list = await uow.CycleEtapesHistorique.ListAsync(h => h.CyclePmaId == id);
-        return Ok(list.OrderBy(h => h.DateEtape).Select(h => new CycleEtapeHistoriqueDto
-        {
-            Id = h.Id,
-            Etape = h.Etape,
-            Statut = h.Statut,
-            DateEtape = h.DateEtape,
-            Observation = h.Observation,
-            CyclePmaId = h.CyclePmaId,
-            UserId = h.UserId
-        }).ToList());
+        return Ok(list.OrderBy(h => h.DateEtape).Select(MapHistorique).ToList());
     }
 
     [HttpPost("{id:int}/avancer")]
@@ -112,11 +134,14 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
             CyclePmaId = id,
             UserId = null
         });
+        if (!string.IsNullOrWhiteSpace(body.Etape))
+            cycle.Phase = body.Etape.Trim();
         cycle.EtapeCourante = body.Etape ?? cycle.EtapeCourante;
         cycle.DerniereMiseAJour = now;
         cycle.StatutCycle = "en_cours";
         await uow.CyclesPma.UpdateAsync(cycle);
         await uow.SaveChangesAsync();
+        await NotifyCycleChanged(id);
         return NoContent();
     }
 
@@ -134,6 +159,7 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
         c.DerniereMiseAJour = DateTime.UtcNow;
         await uow.CyclesPma.UpdateAsync(c);
         await uow.SaveChangesAsync();
+        await NotifyCycleChanged(id);
         return NoContent();
     }
 
@@ -154,8 +180,69 @@ public class CyclesPmaController(IUnitOfWork uow) : ControllerBase
         c.DerniereMiseAJour = DateTime.UtcNow;
         await uow.CyclesPma.UpdateAsync(c);
         await uow.SaveChangesAsync();
+        await NotifyCycleChanged(id);
         return NoContent();
     }
+
+    private async Task NotifyCycleChanged(int cycleId)
+    {
+        await hub.Clients.Group(CycleHub.GroupName(cycleId)).SendAsync("CycleUpdated", cycleId);
+        await hub.Clients.Group(CycleHub.CyclesListGroup).SendAsync("CycleListChanged");
+    }
+
+    /// <summary>Crée un jalon initial en base pour les cycles existants sans historique.</summary>
+    private async Task EnsureHistoriqueFromCyclesAsync()
+    {
+        var cycles = await uow.CyclesPma.ListAsync();
+        var changed = false;
+        foreach (var c in cycles)
+        {
+            var existing = await uow.CycleEtapesHistorique.ListAsync(h => h.CyclePmaId == c.Id);
+            if (existing.Count > 0) continue;
+            await uow.CycleEtapesHistorique.AddAsync(BuildHistoriqueFromCycle(c));
+            changed = true;
+        }
+        if (changed)
+            await uow.SaveChangesAsync();
+    }
+
+    private async Task EnsureHistoriqueForCycleAsync(CyclePma cycle)
+    {
+        var existing = await uow.CycleEtapesHistorique.ListAsync(h => h.CyclePmaId == cycle.Id);
+        if (existing.Count > 0) return;
+        await uow.CycleEtapesHistorique.AddAsync(BuildHistoriqueFromCycle(cycle));
+        await uow.SaveChangesAsync();
+    }
+
+    private static CycleEtapeHistorique BuildHistoriqueFromCycle(CyclePma cycle)
+    {
+        var when = cycle.DerniereMiseAJour != default ? cycle.DerniereMiseAJour : cycle.DateDebut;
+        if (when == default)
+            when = DateTime.UtcNow;
+        var statut = string.Equals(cycle.StatutCycle, "termine", StringComparison.OrdinalIgnoreCase)
+            ? "termine"
+            : "en_cours";
+        return new CycleEtapeHistorique
+        {
+            Etape = string.IsNullOrWhiteSpace(cycle.Phase) ? "Cycle PMA" : cycle.Phase.Trim(),
+            Statut = statut,
+            DateEtape = when,
+            Observation = "Synchronisé depuis le dossier cycle",
+            CyclePmaId = cycle.Id,
+            UserId = null
+        };
+    }
+
+    private static CycleEtapeHistoriqueDto MapHistorique(CycleEtapeHistorique h) => new()
+    {
+        Id = h.Id,
+        Etape = h.Etape,
+        Statut = h.Statut,
+        DateEtape = h.DateEtape,
+        Observation = h.Observation,
+        CyclePmaId = h.CyclePmaId,
+        UserId = h.UserId
+    };
 
     private static CyclePmaDto Map(CyclePma c) => new()
     {

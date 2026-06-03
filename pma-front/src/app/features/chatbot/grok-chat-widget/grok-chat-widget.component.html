@@ -1,0 +1,109 @@
+<!-- Bouton flottant FAB -->
+<button
+  class="gcw-fab"
+  (click)="widgetSvc.toggle()"
+  [class.gcw-fab--open]="widgetSvc.isOpen()"
+  [attr.aria-label]="widgetSvc.isOpen() ? 'Fermer l\'assistant' : 'Ouvrir l\'assistant Grok'"
+  title="Assistant IA Grok"
+>
+  <i class="fas" [class.fa-robot]="!widgetSvc.isOpen()" [class.fa-times]="widgetSvc.isOpen()"></i>
+  @if (!widgetSvc.isOpen() && messages().length > 1) {
+    <span class="gcw-fab-badge">{{ messages().length - 1 }}</span>
+  }
+</button>
+
+<!-- Panneau chat -->
+@if (widgetSvc.isOpen()) {
+  <div class="gcw-panel">
+
+    <!-- En-tête -->
+    <div class="gcw-header">
+      <div class="gcw-header-left">
+        <div class="gcw-avatar-icon">
+          <i class="fas fa-robot"></i>
+        </div>
+        <div>
+          <span class="gcw-title">Assistant PMA — Groq AI</span>
+          <span class="gcw-engine"
+            [class.ok]="engineOk() === 'ok'"
+            [class.err]="engineOk() === 'error'"
+            [class.chk]="engineOk() === 'checking'">
+            <i class="fas" [class.fa-circle]="engineOk()==='ok'"
+               [class.fa-spinner]="engineOk()==='checking'"
+               [class.fa-spin]="engineOk()==='checking'"
+               [class.fa-exclamation-circle]="engineOk()==='error'"></i>
+            {{ engineOk() === 'ok' ? 'En ligne' : engineOk() === 'checking' ? 'Connexion…' : 'Hors ligne' }}
+          </span>
+        </div>
+      </div>
+      <div class="gcw-header-actions">
+        <button type="button" class="gcw-btn-icon" (click)="clearHistory()" title="Effacer">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        <button type="button" class="gcw-btn-icon" (click)="widgetSvc.close()" title="Fermer">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="gcw-messages">
+      @for (msg of messages(); track $index) {
+        <div class="gcw-msg" [class.gcw-msg--user]="msg.role === 'user'" [class.gcw-msg--bot]="msg.role === 'bot'">
+          @if (msg.role === 'bot') {
+            <div class="gcw-msg-avatar"><i class="fas fa-robot"></i></div>
+          }
+          <div class="gcw-bubble">
+            <div class="gcw-bubble-text">{{ msg.text }}</div>
+            <span class="gcw-bubble-time">{{ fmtTime(msg.timestamp) }}</span>
+          </div>
+          @if (msg.role === 'user') {
+            <div class="gcw-msg-avatar gcw-msg-avatar--user"><i class="fas fa-user"></i></div>
+          }
+        </div>
+      }
+
+      @if (busy()) {
+        <div class="gcw-msg gcw-msg--bot">
+          <div class="gcw-msg-avatar"><i class="fas fa-robot"></i></div>
+          <div class="gcw-bubble gcw-bubble--typing">
+            <span class="gcw-dot"></span>
+            <span class="gcw-dot"></span>
+            <span class="gcw-dot"></span>
+          </div>
+        </div>
+      }
+      <div #msgEnd></div>
+    </div>
+
+    <!-- Barre de saisie -->
+    <div class="gcw-input-bar">
+      <input
+        type="text"
+        class="gcw-input"
+        placeholder="Posez votre question…"
+        [value]="userInput()"
+        (input)="userInput.set($any($event.target).value)"
+        (keydown.enter)="send()"
+        [disabled]="busy()"
+        autocomplete="off"
+      />
+      <button
+        type="button"
+        class="gcw-btn-send"
+        [disabled]="busy() || !userInput().trim()"
+        (click)="send()"
+      >
+        @if (busy()) {
+          <i class="fas fa-spinner fa-spin"></i>
+        } @else {
+          <i class="fas fa-paper-plane"></i>
+        }
+      </button>
+    </div>
+
+    <div class="gcw-footer">
+      Propulsé par <strong>Groq AI — Llama 3.3</strong> · Données confidentielles
+    </div>
+  </div>
+}

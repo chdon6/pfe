@@ -9,7 +9,7 @@ export interface Patient {
   femmePrenom?: string | null;
   femmeDateNaissance?: string | null;
   numDossier: string;
-  /** couple | spermogramme (homme seul) */
+  /** couple | spermogramme (homme seul) | femme_seul */
   typeDossier?: string;
   /** Code acte PMA prévu (fiv, icsi, …) */
   typeActePma?: string | null;

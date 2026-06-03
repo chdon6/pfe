@@ -1,4 +1,7 @@
 .vs/
 **/bin/
 **/obj/
-PMA-Chatbot/venv/ 
+PMA-Chatbot/venv/
+# Fichiers de configuration locaux avec secrets
+appsettings.Development.json
+*.user.secrets.json

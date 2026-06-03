@@ -2,6 +2,20 @@
 
 // Structure et styles type maquette React : classes .rz-* dans src/styles/_react-mock-pages.scss
 
+.btn-grok {
+  color: #7c3aed !important;
+  background: #ede9fe !important;
+  border-color: #ddd6fe !important;
+  transition: background 0.15s, transform 0.1s;
+
+  &:hover:not(:disabled) {
+    background: #c4b5fd !important;
+    transform: scale(1.1);
+  }
+
+  &:disabled { opacity: 0.5; cursor: wait; }
+}
+
 .rz-badge-demo {
   font-size: 0.7rem;
   font-weight: 700;

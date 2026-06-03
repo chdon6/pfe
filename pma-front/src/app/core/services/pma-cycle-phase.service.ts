@@ -1,32 +1,26 @@
 import { Injectable } from '@angular/core';
+import type { CycleEtapeHistorique } from '../models';
 import type { CyclePma } from '../models';
+import {
+  phasesForActePma,
+  type ActeCyclePhaseStep,
+} from '../constants/acte-cycle-phases';
 
-/** Phases linéaires du parcours PMA (barre Consultation initiale → Test de grossesse). */
-export const PMA_PHASE_STEPS: readonly { key: string; label: string; offsetJours: number }[] = [
-  { key: 'consultation', label: 'Consultation initiale', offsetJours: 0 },
-  { key: 'stimulation', label: 'Stimulation ovarienne', offsetJours: 3 },
-  { key: 'monitoring', label: 'Suivi & monitoring', offsetJours: 10 },
-  { key: 'declenchement', label: 'Déclenchement OV', offsetJours: 12 },
-  { key: 'ponction', label: 'Ponction ovocytaire', offsetJours: 14 },
-  { key: 'fec', label: 'Fécondation (FIV/ICSI)', offsetJours: 15 },
-  { key: 'culture', label: 'Culture embryonnaire', offsetJours: 17 },
-  { key: 'transfert', label: 'Transfert embryonnaire', offsetJours: 19 },
-  { key: 'luteal', label: 'Phase lutéale', offsetJours: 21 },
-  { key: 'test', label: 'Test de grossesse', offsetJours: 28 },
-] as const;
+export type { ActeCyclePhaseStep };
 
-export const PMA_TOTAL_STEPS = PMA_PHASE_STEPS.length;
+/** @deprecated Utiliser totalStepsForActePma(typeActePma) — conservé pour compatibilité templates. */
+export const PMA_TOTAL_STEPS = 10;
 
 export interface PhaseCalendarItem {
   index: number;
   label: string;
   datePrevue: Date;
   statut: 'termine' | 'en_cours' | 'a_venir';
+  /** Date réelle issue de l’historique API si disponible */
+  fromHistorique?: boolean;
 }
 
-/** Une ligne par jour du parcours (phase dominante ce jour-là). */
 export interface JourPhaseCalendrier {
-  /** Jour 0 = date de début du cycle */
   jourIndex: number;
   date: Date;
   phaseIndex: number;
@@ -36,50 +30,69 @@ export interface JourPhaseCalendrier {
 
 @Injectable({ providedIn: 'root' })
 export class PmaCyclePhaseService {
-  /** Index d’étape 1..N à partir du libellé de phase en base et éventuellement "3/10". */
-  resolveStepIndex(cycle: Pick<CyclePma, 'phase' | 'etapeCourante'>): number {
+  getSteps(typeActePma?: string | null): readonly ActeCyclePhaseStep[] {
+    return phasesForActePma(typeActePma);
+  }
+
+  totalSteps(typeActePma?: string | null): number {
+    return phasesForActePma(typeActePma).length;
+  }
+
+  resolveStepIndex(
+    cycle: Pick<CyclePma, 'phase' | 'etapeCourante'>,
+    typeActePma?: string | null,
+    historique?: CycleEtapeHistorique[]
+  ): number {
+    const steps = phasesForActePma(typeActePma);
+    const total = steps.length;
+    if (total === 0) return 1;
+
+    if (historique?.length) {
+      let maxIdx = 0;
+      for (const h of historique) {
+        const idx = this.matchStepIndex(h.etape, steps);
+        if (idx > maxIdx) maxIdx = idx;
+      }
+      if (maxIdx > 0) return Math.min(total, maxIdx);
+    }
+
     const frac = /^\s*(\d+)\s*\/\s*(\d+)\s*$/i.exec(cycle.etapeCourante || '');
     if (frac) {
       const cur = parseInt(frac[1], 10);
-      return Math.min(PMA_TOTAL_STEPS, Math.max(1, cur));
+      return Math.min(total, Math.max(1, cur));
     }
 
-    const p = (cycle.phase || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    if (/consult|initial/.test(p)) return 1;
-    if (/stimul|ovarien/.test(p)) return 2;
-    if (/monitor|suivi|follicul/.test(p)) return 3;
-    if (/declench/.test(p)) return 4;
-    if (/ponct/.test(p)) return 5;
-    if (/fec|icsi|fiv|insemin/.test(p)) return 6;
-    if (/cultur|embryon(?!\s*transfer)/.test(p)) return 7;
-    if (/transfert|transfer/.test(p)) return 8;
-    if (/luteal|lute/.test(p)) return 9;
-    if (/test|grossesse|beta|hcg/.test(p)) return 10;
+    const fromPhase = this.matchStepIndex(cycle.phase || '', steps);
+    if (fromPhase > 0) return fromPhase;
 
-    const ec = (cycle.etapeCourante || '').toLowerCase();
-    if (/initial/.test(ec)) return 1;
-    if (/stimul|ovarien/.test(ec)) return 2;
-    return 2;
+    const fromEtape = this.matchStepIndex(cycle.etapeCourante || '', steps);
+    if (fromEtape > 0) return fromEtape;
+
+    return 1;
   }
 
-  progressPercent(stepIndex: number): number {
-    return Math.round((Math.min(stepIndex, PMA_TOTAL_STEPS) / PMA_TOTAL_STEPS) * 100);
+  progressPercent(stepIndex: number, typeActePma?: string | null): number {
+    const total = this.totalSteps(typeActePma);
+    if (total <= 0) return 0;
+    return Math.round((Math.min(stepIndex, total) / total) * 100);
   }
 
-  /** Libellé court pour badge type acte (FIV / ICSI / Stimulation…). */
-  badgeTypeActe(protocoleType: string | undefined, phase: string): string {
-    const t = (protocoleType || '').toUpperCase();
-    if (t.includes('ICSI')) return 'ICSI';
-    if (t.includes('FIV')) return 'FIV';
+  badgeTypeActe(typeActePma: string | undefined, phase: string): string {
+    const t = (typeActePma || '').trim();
+    if (t) {
+      const short = t.toUpperCase();
+      if (short.includes('ICSI')) return 'ICSI';
+      if (short.includes('FIV')) return 'FIV';
+      if (short === 'INSEMINATION') return 'IIU';
+      if (short.includes('SPERMOGRAMME')) return 'Spermogramme';
+      if (short.includes('CRYO')) return 'Cryo';
+    }
     const ph = (phase || '').toLowerCase();
-    if (/stimul|ovarien/.test(ph)) return 'Stimulation ovarienne';
+    if (/stimul|ovarien/.test(ph)) return 'Stimulation';
     if (/monitor|suivi/.test(ph)) return 'Monitoring';
     if (/ponct/.test(ph)) return 'Ponction';
-    if (/transfer/.test(ph)) return 'Transfert';
-    return protocoleType || 'PMA';
+    if (/transfer|transfert/.test(ph)) return 'Transfert';
+    return typeActePma || 'PMA';
   }
 
   statutLabel(statutCycle: string): string {
@@ -101,35 +114,52 @@ export class PmaCyclePhaseService {
     return 'badge-statut-brouillon';
   }
 
-  buildCalendar(cycle: Pick<CyclePma, 'dateDebut' | 'phase' | 'etapeCourante'>): PhaseCalendarItem[] {
-    const start = this.parseStartDate(cycle.dateDebut);
-    const currentStep = this.resolveStepIndex(cycle);
-    return PMA_PHASE_STEPS.map((s, i) => {
+  buildCalendar(
+    cycle: Pick<CyclePma, 'dateDebut' | 'phase' | 'etapeCourante'>,
+    typeActePma?: string | null,
+    historique?: CycleEtapeHistorique[]
+  ): PhaseCalendarItem[] {
+    const steps = phasesForActePma(typeActePma);
+    const start = this.parseCycleStartDate(cycle.dateDebut);
+    const currentStep = this.resolveStepIndex(cycle, typeActePma, historique);
+    const histByStep = this.historiqueParPhase(steps, historique);
+
+    return steps.map((s, i) => {
       const index = i + 1;
-      const d = new Date(start);
-      d.setDate(d.getDate() + s.offsetJours);
+      const hist = histByStep.get(index);
+      let d: Date;
+      let fromHistorique = false;
+      if (hist?.dateEtape) {
+        d = this.parseCycleStartDate(hist.dateEtape);
+        fromHistorique = true;
+      } else {
+        d = new Date(start);
+        d.setDate(d.getDate() + s.offsetJours);
+      }
       let statut: PhaseCalendarItem['statut'] = 'a_venir';
       if (index < currentStep) statut = 'termine';
       else if (index === currentStep) statut = 'en_cours';
-      return { index, label: s.label, datePrevue: d, statut };
+      return { index, label: s.label, datePrevue: d, statut, fromHistorique };
     });
   }
 
-  /**
-   * Calendrier jour par jour : chaque jour du cycle a une phase associée
-   * (même logique que les jalons : le jour appartient à la dernière étape dont l’offset est ≤ au jour courant).
-   */
-  buildDailyCalendar(cycle: Pick<CyclePma, 'dateDebut' | 'phase' | 'etapeCourante'>): JourPhaseCalendrier[] {
-    const start = this.parseStartDate(cycle.dateDebut);
-    const currentStep = this.resolveStepIndex(cycle);
-    const lastDay = PMA_PHASE_STEPS[PMA_PHASE_STEPS.length - 1]!.offsetJours;
+  buildDailyCalendar(
+    cycle: Pick<CyclePma, 'dateDebut' | 'phase' | 'etapeCourante'>,
+    typeActePma?: string | null,
+    historique?: CycleEtapeHistorique[]
+  ): JourPhaseCalendrier[] {
+    const steps = phasesForActePma(typeActePma);
+    if (steps.length === 0) return [];
+    const start = this.parseCycleStartDate(cycle.dateDebut);
+    const currentStep = this.resolveStepIndex(cycle, typeActePma, historique);
+    const lastDay = steps[steps.length - 1]!.offsetJours;
     const rows: JourPhaseCalendrier[] = [];
     for (let j = 0; j <= lastDay; j++) {
       const date = new Date(start);
       date.setDate(date.getDate() + j);
       let phaseIdx = 0;
-      for (let i = 0; i < PMA_PHASE_STEPS.length; i++) {
-        if (j >= PMA_PHASE_STEPS[i]!.offsetJours) phaseIdx = i;
+      for (let i = 0; i < steps.length; i++) {
+        if (j >= steps[i]!.offsetJours) phaseIdx = i;
       }
       const phaseIndex = phaseIdx + 1;
       let statut: JourPhaseCalendrier['statut'] = 'a_venir';
@@ -139,17 +169,13 @@ export class PmaCyclePhaseService {
         jourIndex: j,
         date,
         phaseIndex,
-        phaseLabel: PMA_PHASE_STEPS[phaseIdx]!.label,
+        phaseLabel: steps[phaseIdx]!.label,
         statut,
       });
     }
     return rows;
   }
 
-  /**
-   * Date de début en **heure locale** (évite les décalages d’un jour avec les ISO `...T00:00:00Z`).
-   * Utilisée pour le calendrier jour / phase.
-   */
   parseCycleStartDate(dateDebut: string | undefined | null): Date {
     if (dateDebut == null || !String(dateDebut).trim()) {
       return this.startOfLocalToday();
@@ -166,11 +192,48 @@ export class PmaCyclePhaseService {
     return Number.isNaN(d.getTime()) ? this.startOfLocalToday() : d;
   }
 
-  private parseStartDate(dateDebut: string): Date {
-    return this.parseCycleStartDate(dateDebut);
+  private matchStepIndex(text: string, steps: readonly ActeCyclePhaseStep[]): number {
+    const t = text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (!t.trim()) return 0;
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i]!;
+      const key = s.key.toLowerCase();
+      const label = s.label
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      if (t === key || t === label || label.includes(t) || t.includes(key)) {
+        return i + 1;
+      }
+      if (key === 'fec' && /fec|fiv|icsi|insemin/.test(t)) return i + 1;
+      if (key === 'ponction' && /ponct/.test(t)) return i + 1;
+      if (key === 'transfert' && /transfer|transfert/.test(t)) return i + 1;
+      if (key === 'test' && /test|grossesse|hcg|beta/.test(t)) return i + 1;
+      if (key === 'stimulation' && /stimul/.test(t)) return i + 1;
+      if (key === 'monitoring' && /monitor|suivi|follicul/.test(t)) return i + 1;
+      if (key === 'consultation' && /consult|initial/.test(t)) return i + 1;
+    }
+    return 0;
   }
 
-  /** Milieu de journée locale pour comparaisons stables. */
+  private historiqueParPhase(
+    steps: readonly ActeCyclePhaseStep[],
+    historique?: CycleEtapeHistorique[]
+  ): Map<number, CycleEtapeHistorique> {
+    const map = new Map<number, CycleEtapeHistorique>();
+    if (!historique?.length) return map;
+    for (const h of historique) {
+      const idx = this.matchStepIndex(h.etape, steps);
+      if (idx > 0 && !map.has(idx)) {
+        map.set(idx, h);
+      }
+    }
+    return map;
+  }
+
   private startOfLocalToday(): Date {
     const t = new Date();
     return new Date(t.getFullYear(), t.getMonth(), t.getDate(), 12, 0, 0, 0);

@@ -39,7 +39,7 @@ public class PatientsController(IUnitOfWork uow, IWebHostEnvironment env) : Cont
     {
         if (string.IsNullOrWhiteSpace(value)) return "couple";
         var v = value.Trim().ToLowerInvariant();
-        return v is "couple" or "spermogramme" ? v : null;
+        return v is "couple" or "spermogramme" or "femme_seul" ? v : null;
     }
 
     [HttpGet]
@@ -58,6 +58,17 @@ public class PatientsController(IUnitOfWork uow, IWebHostEnvironment env) : Cont
         var list = await uow.Patients.ListAsync();
         var p = list.FirstOrDefault(x => string.Equals(x.NumDossier.Trim(), key, StringComparison.OrdinalIgnoreCase));
         return p is null ? NotFound() : Ok(Map(p));
+    }
+
+    /// <summary>Prochain N° de dossier libre (calculé sur tous les patients en base).</summary>
+    [HttpGet("prochain-numero-dossier")]
+    public async Task<ActionResult<ProchainNumeroDossierDto>> GetProchainNumeroDossier()
+    {
+        var list = await uow.Patients.ListAsync();
+        var nums = list.Select(p => p.NumDossier).ToList();
+        var next = NumeroDossierGenerator.AllocateNext(nums);
+        var seq = NumeroDossierGenerator.ExtractSequence(next);
+        return Ok(new ProchainNumeroDossierDto { NumDossier = next, Sequence = seq });
     }
 
     [HttpGet("{id:int}")]
@@ -94,7 +105,7 @@ public class PatientsController(IUnitOfWork uow, IWebHostEnvironment env) : Cont
 
         var dossierKind = NormalizeTypeDossier(typeDossier);
         if (dossierKind is null)
-            return BadRequest("Type de dossier invalide. Utilisez « couple » ou « spermogramme ».");
+            return BadRequest("Type de dossier invalide. Utilisez « couple », « spermogramme » ou « femme_seul ».");
 
         if (photoCouple is null || photoCouple.Length == 0)
             return BadRequest("La photo est obligatoire (identitovigilance), pour tout dossier.");
@@ -122,6 +133,20 @@ public class PatientsController(IUnitOfWork uow, IWebHostEnvironment env) : Cont
             fdn = fdnParsed;
         }
 
+        var allPatients = await uow.Patients.ListAsync();
+        var allocatedNum = NumeroDossierGenerator.AllocateNext(allPatients.Select(p => p.NumDossier));
+        if (!string.IsNullOrWhiteSpace(numDossier))
+        {
+            var requested = numDossier.Trim();
+            var taken = allPatients.Any(p =>
+                string.Equals(p.NumDossier.Trim(), requested, StringComparison.OrdinalIgnoreCase));
+            if (taken)
+                return BadRequest($"Le numéro de dossier « {requested} » existe déjà. Utilisez {allocatedNum}.");
+            if (!string.Equals(requested, allocatedNum, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(
+                    $"Numéro de dossier obsolète. Le prochain numéro libre est {allocatedNum} (attribué automatiquement).");
+        }
+
         var patient = new Patient
         {
             Nom = nom,
@@ -130,7 +155,7 @@ public class PatientsController(IUnitOfWork uow, IWebHostEnvironment env) : Cont
             FemmeNom = fn,
             FemmePrenom = fp,
             FemmeDateNaissance = fdn,
-            NumDossier = numDossier,
+            NumDossier = allocatedNum,
             Adresse = adresse,
             Telephone = string.IsNullOrWhiteSpace(telephone) ? null : telephone.Trim(),
             TypeDossier = dossierKind,
@@ -272,6 +297,12 @@ public class PatientsController(IUnitOfWork uow, IWebHostEnvironment env) : Cont
         await uow.SaveChangesAsync();
         return NoContent();
     }
+}
+
+public class ProchainNumeroDossierDto
+{
+    public string NumDossier { get; set; } = "";
+    public int Sequence { get; set; }
 }
 
 public class PatientDto

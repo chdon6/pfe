@@ -8,6 +8,7 @@ import { PatientService } from '../../core/services/patient.service';
 import { CyclePmaService } from '../../core/services/cycle-pma.service';
 import type { Bonbonne, Canister, PailleTube, Patient, CyclePma } from '../../core/models';
 import { downloadCsv, printHtmlDocument } from '../../core/utils/client-export';
+import { PdfReportService } from '../../core/utils/pdf-report.service';
 
 interface KpiCard {
   label: string;
@@ -38,6 +39,7 @@ export class ReportingComponent implements OnInit {
   private stockageService = inject(StockageService);
   private patientService = inject(PatientService);
   private cycleService = inject(CyclePmaService);
+  private pdfService = inject(PdfReportService);
 
   loading = signal(true);
   periodeFiltre = signal<'annee' | 'semestre' | 'trimestre'>('annee');
@@ -204,23 +206,23 @@ export class ReportingComponent implements OnInit {
   }
 
   exporterRapportReglementaire(rapport: RapportReglementaire): void {
-    const now = new Date();
-    const annee = now.getFullYear();
+    const data = {
+      patients:  this.patients(),
+      cycles:    this.cycles(),
+      bonbonnes: this.bonbonnes(),
+      canisters: this.canisters(),
+      pailles:   this.pailles(),
+    };
 
     switch (rapport.id) {
-      case 'abm-annuel':
-        this.genererRapportABM(annee);
-        break;
-      case 'registre-fiv':
-        this.genererRegistreFIV(annee);
-        break;
-      case 'vigilance-cryo':
-        this.genererVigilanceCryo(annee);
-        break;
-      case 'bilan-stockage':
-        this.genererBilanStockage(annee);
-        break;
+      case 'abm-annuel':      this.pdfService.rapportABM(data);      break;
+      case 'registre-fiv':    this.pdfService.registreFIV(data);     break;
+      case 'vigilance-cryo':  this.pdfService.vigilanceCryo(data);   break;
+      case 'bilan-stockage':  this.pdfService.bilanStockage(data);   break;
     }
+
+    // Mettre à jour la date du dernier export
+    rapport.dernierExport = new Date();
   }
 
   imprimerTableauBord(): void {

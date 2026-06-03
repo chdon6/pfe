@@ -14,7 +14,7 @@ public class Patient
     public string? FemmePrenom { get; set; }
     public DateTime? FemmeDateNaissance { get; set; }
     public string NumDossier { get; set; } = string.Empty;
-    /// <summary>couple | spermogramme</summary>
+    /// <summary>couple | spermogramme | femme_seul</summary>
     public string TypeDossier { get; set; } = "couple";
     public string? TypeActePma { get; set; }
     public string? Adresse { get; set; }
