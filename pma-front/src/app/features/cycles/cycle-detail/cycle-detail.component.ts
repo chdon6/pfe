@@ -42,25 +42,23 @@ export class CycleDetailComponent implements OnInit, OnDestroy {
 
   private readonly cycleSig = signal<CyclePma | undefined>(undefined);
 
-  /** Rappels journaliers propres à ce cycle. */
-  readonly cycleNotifsParJour = computed(() => {
+  /** Dernier rappel journalier pour ce cycle (aujourd’hui en priorité). */
+  readonly derniereNotifCycle = computed(() => {
     const c = this.cycleSig();
-    if (!c) return [];
+    if (!c) return null;
     const items = this.notifSvc.items().filter((n) => n.cycleId === c.id);
-    const map = new Map<string, typeof items>();
-    for (const n of items) {
-      const key = n.jourDate;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(n);
-    }
+    if (items.length === 0) return null;
+
     const today = this.isoToday();
-    return [...map.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([jourDate, list]) => ({
-        jourDate,
-        jourLabel: this.notifSvc.labelJour(jourDate, today),
-        items: list,
-      }));
+    const todayItems = items.filter((n) => n.jourDate === today);
+    const pool = todayItems.length > 0 ? todayItems : items;
+    const n = [...pool].sort((a, b) => b.jourDate.localeCompare(a.jourDate))[0]!;
+
+    return {
+      jourDate: n.jourDate,
+      jourLabel: this.notifSvc.labelJour(n.jourDate, today),
+      item: n,
+    };
   });
 
   get cycle(): CyclePma | undefined {
@@ -92,6 +90,11 @@ export class CycleDetailComponent implements OnInit, OnDestroy {
   signingResult = false;
 
   totalSteps = 1;
+
+  /** Case à cocher avant passage à l'étape suivante du parcours. */
+  confirmerPassagePhase = false;
+  avancePhaseMsg = '';
+  avancePhaseEnCours = false;
 
   ngOnInit(): void {
     const id = +this.route.snapshot.paramMap.get('id')!;
@@ -190,6 +193,58 @@ export class CycleDetailComponent implements OnInit, OnDestroy {
       r === 'positif' || r === 'negatif' || r === 'en_attente' ? r : 'en_attente';
     this.signerCertifie = false;
     this.signataireDraft = this.libelleSignataireDefaut();
+    this.confirmerPassagePhase = false;
+  }
+
+  peutAvancerPhase(): boolean {
+    return !!this.cycle && this.stepCourant < this.totalSteps;
+  }
+
+  etapeCouranteLabel(): string {
+    const steps = this.phaseService.getSteps(this.patient?.typeActePma);
+    return steps[this.stepCourant - 1]?.label ?? '';
+  }
+
+  prochaineEtapeLabel(): string {
+    const steps = this.phaseService.getSteps(this.patient?.typeActePma);
+    return steps[this.stepCourant]?.label ?? '';
+  }
+
+  confirmerAvancementPhase(): void {
+    if (!this.cycle || !this.peutAvancerPhase()) return;
+    if (!this.confirmerPassagePhase) {
+      this.avancePhaseMsg = 'Cochez la case de confirmation avant de passer à l’étape suivante.';
+      return;
+    }
+    const etape = this.prochaineEtapeLabel();
+    if (!etape) return;
+
+    this.avancePhaseEnCours = true;
+    this.avancePhaseMsg = '';
+    this.cycleService
+      .avancerEtape(this.cycle.id, {
+        etape,
+        observation: `Confirmation du passage : ${this.etapeCouranteLabel()} → ${etape}`,
+      })
+      .subscribe({
+        next: () => {
+          this.avancePhaseEnCours = false;
+          this.confirmerPassagePhase = false;
+          this.avancePhaseMsg = `Étape « ${etape} » activée.`;
+          this.entityHistory.logCycle(
+            this.cycle!.id,
+            'Confirmation passage de phase',
+            `${this.etapeCouranteLabel()} → ${etape}`,
+            this.auth.user()?.identifiant
+          );
+          this.pullCycle(this.cycle!.id);
+        },
+        error: () => {
+          this.avancePhaseEnCours = false;
+          this.avancePhaseMsg =
+            'Passage refusé par le serveur. Vérifiez l’API POST /cyclespma/{id}/avancer.';
+        },
+      });
   }
 
   dailyWeeks(): JourPhaseCalendrier[][] {

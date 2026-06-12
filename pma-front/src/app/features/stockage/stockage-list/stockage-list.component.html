@@ -45,6 +45,13 @@
                 <option [ngValue]="p.id">{{ libellePatient(p) }}</option>
               }
             </select>
+            @if (dernierPatientPourStockage(); as dernier) {
+              <p class="field-hint new-patient-hint">
+                <i class="fas fa-star"></i>
+                <strong>Dernier dossier ajouté</strong> — en tête de liste :
+                {{ dernier.prenom }} {{ dernier.nom }} (n° {{ dernier.numDossier }})
+              </p>
+            }
             @if (patientsPourStockageCryo().length === 0) {
               <p class="field-hint warn">Aucun patient avec acte de cryoconservation / AMP dans la liste API. Vérifiez le type d'acte sur le dossier.</p>
             }

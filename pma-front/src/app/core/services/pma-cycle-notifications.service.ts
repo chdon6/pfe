@@ -30,8 +30,9 @@ export interface PmaCycleJourGroup {
 
 const STORAGE = 'pma_cycle_notifications';
 
-/** Fenêtre de planification affichée (jours à partir d’aujourd’hui). */
-const HORIZON_JOURS = 14;
+/** Jours passés et futurs inclus dans l’agenda biologiste. */
+const HORIZON_PASSE = 7;
+const HORIZON_FUTUR = 14;
 
 export interface PmaCycleRdvSource {
   dateHeure: string;
@@ -42,6 +43,7 @@ export interface PmaCycleNotifSource {
   cycleId: number;
   patientLabel: string;
   phase: string;
+  etapeCourante?: string;
   step: number;
   dateDebut: string;
   statut: string;
@@ -99,7 +101,7 @@ export class PmaCycleNotificationsService {
   }
 
   private persist(list: PmaCycleNotification[]): void {
-    localStorage.setItem(STORAGE, JSON.stringify(list.slice(0, 300)));
+    localStorage.setItem(STORAGE, JSON.stringify(list.slice(0, 500)));
     this.items.set(list);
   }
 
@@ -154,34 +156,19 @@ export class PmaCycleNotificationsService {
       const phaseSteps = phasesForActePma(r.typeActePma);
       const total = phaseSteps.length;
       const hist = r.historique ?? [];
-      const hasHistorique = hist.length > 0;
-      const windowStart = this.addDays(today, -7);
-      const windowEnd = this.addDays(today, HORIZON_JOURS);
+      const windowStart = this.addDays(today, -HORIZON_PASSE);
+      const windowEnd = this.addDays(today, HORIZON_FUTUR);
+      const todayIso = this.isoDay(today);
 
-      for (const h of hist) {
-        const hDay = this.stripTime(new Date(h.dateEtape));
-        if (hDay < windowStart || hDay > windowEnd) continue;
-        const jourIso = this.isoDay(hDay);
-        const joursDepuisDebut = Math.max(0, Math.floor((hDay.getTime() - startMs) / 86400000));
-        const termine = /termine|realise|réalisé|realise/i.test(h.statut || '');
-        const when = this.labelJour(jourIso, this.isoDay(today));
-        generated.push(
-          this.row(
-            `auto-${r.cycleId}-hist-${h.id}`,
-            r,
-            jourIso,
-            joursDepuisDebut,
-            h.etape,
-            termine ? 'info' : 'info',
-            `${when} — ${h.etape}`,
-            termine
-              ? `Jalon enregistré pour ${r.patientLabel}${h.observation ? ' · ' + h.observation : ''}.`
-              : `Suivi en cours : ${r.patientLabel} — ${h.etape}.`,
-            readMap,
-            true
-          )
-        );
-      }
+      this.generateDailyPhaseNotifications(
+        r,
+        today,
+        todayIso,
+        windowStart,
+        windowEnd,
+        readMap,
+        generated
+      );
 
       for (const rdv of r.rdvs ?? []) {
         const rdvDay = this.stripTime(new Date(rdv.dateHeure));
@@ -202,42 +189,6 @@ export class PmaCycleNotificationsService {
             true
           )
         );
-      }
-
-      if (!hasHistorique) {
-        for (let horizon = 0; horizon <= HORIZON_JOURS; horizon++) {
-          const targetDay = this.addDays(today, horizon);
-          const jourIso = this.isoDay(targetDay);
-
-          for (let i = 0; i < phaseSteps.length; i++) {
-            const step = i + 1;
-            const offset = phaseSteps[i]!.offsetJours;
-            const label = phaseSteps[i]!.label;
-            const phaseDate = new Date(start);
-            phaseDate.setDate(phaseDate.getDate() + offset);
-            const pd = this.stripTime(phaseDate);
-
-            if (!this.sameCalendarDay(pd, targetDay)) continue;
-
-            const when =
-              horizon === 0 ? 'Aujourd’hui' : horizon === 1 ? 'Demain' : this.formatDateFr(targetDay);
-
-            generated.push(
-              this.row(
-                `auto-${r.cycleId}-jour-${jourIso}-step-${step}`,
-                r,
-                jourIso,
-                offset,
-                label,
-                'info',
-                `${when} — ${label} (prévision)`,
-                `Prévision type pour ${r.patientLabel} · ${label} (J${offset}).`,
-                readMap,
-                false
-              )
-            );
-          }
-        }
       }
 
       const hasTestStep = phaseSteps.some((s) => s.key === 'test');
@@ -291,7 +242,62 @@ export class PmaCycleNotificationsService {
       if (d !== 0) return d;
       return sevOrder[a.severity] - sevOrder[b.severity];
     });
-    this.persist([...generated, ...manual].slice(0, 300));
+    this.persist([...generated, ...manual].slice(0, 500));
+  }
+
+  /** Un rappel biologiste par jour calendaire du parcours (chaque jour de chaque phase). */
+  private generateDailyPhaseNotifications(
+    r: PmaCycleNotifSource,
+    today: Date,
+    todayIso: string,
+    windowStart: Date,
+    windowEnd: Date,
+    readMap: Map<string, boolean>,
+    generated: PmaCycleNotification[]
+  ): void {
+    const daily = this.phaseSvc.buildDailyCalendar(
+      {
+        dateDebut: r.dateDebut,
+        phase: r.phase,
+        etapeCourante: r.etapeCourante ?? r.phase,
+      },
+      r.typeActePma,
+      r.historique ?? []
+    );
+
+    for (const d of daily) {
+      const dDay = this.stripTime(d.date);
+      if (dDay < windowStart || dDay > windowEnd) continue;
+
+      const jourIso = this.isoDay(dDay);
+      const jourNum = d.jourIndex + 1;
+      const horizon = Math.floor((dDay.getTime() - today.getTime()) / 86400000);
+      const when =
+        horizon === 0 ? 'Aujourd’hui' : horizon === 1 ? 'Demain' : this.formatDateFr(dDay);
+      const isPastOrToday = dDay.getTime() <= today.getTime();
+
+      let severity: PmaNotifSeverity = 'info';
+      if (jourIso === todayIso) {
+        severity = d.statut === 'en_cours' ? 'warning' : d.statut === 'termine' ? 'info' : 'info';
+      }
+
+      generated.push(
+        this.row(
+          `auto-${r.cycleId}-daily-${jourIso}`,
+          r,
+          jourIso,
+          d.jourIndex,
+          d.phaseLabel,
+          severity,
+          `${when} — J${jourNum} · ${d.phaseLabel}`,
+          isPastOrToday
+            ? `Suivi biologiste — ${r.patientLabel} · J${jourNum}, phase « ${d.phaseLabel} ».`
+            : `Prévision J${jourNum} — ${r.patientLabel} · phase « ${d.phaseLabel} ».`,
+          readMap,
+          isPastOrToday
+        )
+      );
+    }
   }
 
   private row(

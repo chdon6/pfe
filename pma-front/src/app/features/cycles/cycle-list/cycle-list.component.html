@@ -79,7 +79,16 @@
             <span class="planning-icon"><i class="fas fa-calendar-check"></i></span>
             <div>
               <h2>Agenda journalier</h2>
-              <p>Jalons par cycle et par jour</p>
+              <p>
+                Rappels biologiste — chaque jour de phase
+                <span
+                  class="realtime-badge realtime-badge--compact"
+                  [class.realtime-badge--on]="isRealtime()"
+                  [title]="isRealtime() ? 'Mises à jour temps réel (SignalR)' : 'Synchronisation périodique (60 s)'">
+                  <i class="fas" [class.fa-circle]="isRealtime()" [class.fa-clock]="!isRealtime()"></i>
+                  {{ isRealtime() ? 'Temps réel' : '60 s' }}
+                </span>
+              </p>
             </div>
           </div>
           <button

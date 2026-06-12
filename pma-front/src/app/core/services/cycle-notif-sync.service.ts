@@ -1,10 +1,11 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { forkJoin, interval, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { CyclePmaService } from './cycle-pma.service';
 import { PatientService } from './patient.service';
 import { RendezVousService } from './rendez-vous.service';
 import { PmaCyclePhaseService } from './pma-cycle-phase.service';
+import { CycleSignalRService } from './cycle-signalr.service';
 import { PmaCycleNotificationsService, type PmaCycleNotifSource } from './pma-cycle-notifications.service';
 import type { CycleEtapeHistorique, RendezVous } from '../models';
 
@@ -15,14 +16,31 @@ export class CycleNotifSyncService {
   private rdvService = inject(RendezVousService);
   private phaseService = inject(PmaCyclePhaseService);
   private notifService = inject(PmaCycleNotificationsService);
+  private signalR = inject(CycleSignalRService);
 
   private started = false;
+
+  /** Connexion SignalR active pour les rappels biologiste. */
+  readonly isRealtime = signal(false);
 
   start(): void {
     if (this.started) return;
     this.started = true;
     this.sync();
-    interval(300_000).subscribe(() => this.sync());
+    this.connectRealtime();
+
+    // Secours si SignalR indisponible + rafraîchissement au changement de jour
+    interval(60_000).subscribe(() => this.sync());
+  }
+
+  private connectRealtime(): void {
+    this.signalR
+      .joinCyclesList()
+      .then(() => this.isRealtime.set(this.signalR.isConnected))
+      .catch(() => this.isRealtime.set(false));
+
+    this.signalR.cycleListChanged$.subscribe(() => this.sync());
+    this.signalR.cycleUpdated$.subscribe(() => this.sync());
   }
 
   forceSync(): void {
@@ -57,6 +75,7 @@ export class CycleNotifSyncService {
           cycleId: c.id,
           patientLabel: label,
           phase: c.phase,
+          etapeCourante: c.etapeCourante,
           step: this.phaseService.resolveStepIndex(c, p?.typeActePma, histByCycle.get(c.id)),
           dateDebut: typeof c.dateDebut === 'string' ? c.dateDebut : new Date(c.dateDebut).toISOString(),
           statut: c.statutCycle,

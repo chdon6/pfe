@@ -97,16 +97,27 @@ export class StockageListComponent implements OnInit {
    * Dossiers avec acte nécessitant stockage cryo : la liste oriente le technicien.
    * (Les autres patients restent masqués pour ce formulaire ; consulter tous les dossiers côté secrétaire.)
    */
+  /** Dossiers cryo triés du plus récent au plus ancien (id décroissant). */
   patientsPourStockageCryo(): Patient[] {
     return this.patients
       .filter((p) => typeActePmaNecessiteStockageCryo(p.typeActePma))
-      .sort((a, b) => `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`, 'fr'));
+      .sort((a, b) => b.id - a.id);
+  }
+
+  dernierPatientPourStockage(): Patient | undefined {
+    return this.patientsPourStockageCryo()[0];
+  }
+
+  estDernierPatientAjoute(p: Patient): boolean {
+    const dernier = this.dernierPatientPourStockage();
+    return !!dernier && p.id === dernier.id;
   }
 
   libellePatient(p: Patient): string {
+    const prefix = this.estDernierPatientAjoute(p) ? '★ Nouveau · ' : '';
     let s = `${p.prenom} ${p.nom} — n° ${p.numDossier}`;
     if (p.typeActePma) s += ` — ${p.typeActePma}`;
-    return s;
+    return prefix + s;
   }
 
   conseilPatient(): string {
@@ -146,8 +157,9 @@ export class StockageListComponent implements OnInit {
   ouvrirPlacement(): void {
     this.placementError = '';
     const def = familleParDefaut();
+    const dernier = this.dernierPatientPourStockage();
     this.placement = {
-      patientId: 0,
+      patientId: dernier?.id ?? 0,
       cyclePmaId: 0,
       bonbonneId: 0,
       canisterId: 0,
@@ -157,6 +169,7 @@ export class StockageListComponent implements OnInit {
       visotubeFamilleId: def.familleId,
       visotubeCouleurNom: def.couleurNom,
     };
+    if (dernier) this.onPlacementPatientChange();
     this.showPlacementForm = true;
   }
 

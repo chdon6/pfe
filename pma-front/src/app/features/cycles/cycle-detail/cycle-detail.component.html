@@ -40,23 +40,24 @@
     </div>
   </div>
 
-  @if (cycleNotifsParJour().length > 0) {
+  @if (derniereNotifCycle(); as notif) {
     <div class="card cycle-jour-notifs">
-      <h2><i class="fas fa-bell"></i> Rappels par jour — ce cycle</h2>
-      @for (g of cycleNotifsParJour(); track g.jourDate) {
-        <div class="cjn-day">
-          <h3 class="cjn-day-title">{{ g.jourLabel }} <span class="cjn-date">{{ g.jourDate | date: 'dd/MM/yyyy' }}</span></h3>
-          <ul class="cjn-list">
-            @for (n of g.items; track n.id) {
-              <li class="cjn-item" [attr.data-sev]="n.severity" [class.cjn-unread]="!n.read">
-                <strong>{{ n.phaseLabel }}</strong>
-                <span>{{ n.body }}</span>
-                <button type="button" class="cjn-mark" (click)="markNotifRead(n.id)">Lu</button>
-              </li>
-            }
-          </ul>
-        </div>
-      }
+      <h2><i class="fas fa-bell"></i> Dernier rappel — ce cycle</h2>
+      <div class="cjn-day">
+        <h3 class="cjn-day-title">
+          {{ notif.jourLabel }} <span class="cjn-date">{{ notif.jourDate | date: 'dd/MM/yyyy' }}</span>
+        </h3>
+        <ul class="cjn-list">
+          <li
+            class="cjn-item"
+            [attr.data-sev]="notif.item.severity"
+            [class.cjn-unread]="!notif.item.read">
+            <strong>{{ notif.item.phaseLabel }}</strong>
+            <span>{{ notif.item.body }}</span>
+            <button type="button" class="cjn-mark" (click)="markNotifRead(notif.item.id)">Lu</button>
+          </li>
+        </ul>
+      </div>
     </div>
   }
 
@@ -87,9 +88,55 @@
                 <span class="phase-date-real" title="Date issue de l’historique">réel</span>
               }
             </span>
+            @if (ph.statut === 'en_cours' && peutAvancerPhase()) {
+              <span class="phase-courante-badge">En cours</span>
+            }
           </div>
         }
       </div>
+
+      @if (peutAvancerPhase()) {
+        <div class="phase-confirm-box">
+          <h3 class="phase-confirm-title">
+            <i class="fas fa-check-double"></i> Confirmation de passage d’étape
+          </h3>
+          <p class="phase-confirm-help">
+            Vous êtes sur <strong>« {{ etapeCouranteLabel() }} »</strong> (étape {{ stepCourant }}/{{ totalSteps }}).
+            Confirmez la réalisation de cette phase pour activer
+            <strong>« {{ prochaineEtapeLabel() }} »</strong>.
+          </p>
+          <label class="phase-confirm-check">
+            <input type="checkbox" [(ngModel)]="confirmerPassagePhase" name="confirmerPassagePhase" />
+            <span>
+              Je confirme que la phase « {{ etapeCouranteLabel() }} » est réalisée et j’autorise le passage à l’étape
+              suivante.
+            </span>
+          </label>
+          <button
+            type="button"
+            class="btn btn-primary phase-confirm-btn"
+            (click)="confirmerAvancementPhase()"
+            [disabled]="avancePhaseEnCours">
+            @if (avancePhaseEnCours) {
+              <i class="fas fa-spinner fa-spin"></i>
+            } @else {
+              <i class="fas fa-arrow-right"></i>
+            }
+            Confirmer et passer à « {{ prochaineEtapeLabel() }} »
+          </button>
+          @if (avancePhaseMsg) {
+            <p
+              class="phase-confirm-msg"
+              [class.error]="avancePhaseMsg.includes('refusé') || avancePhaseMsg.includes('Cochez')">
+              {{ avancePhaseMsg }}
+            </p>
+          }
+        </div>
+      } @else if (stepCourant >= totalSteps && totalSteps > 0) {
+        <p class="phase-parcours-termine">
+          <i class="fas fa-flag-checkered"></i> Toutes les phases du parcours ont été atteintes.
+        </p>
+      }
     </div>
 
     <div class="card daily-calendar-card">

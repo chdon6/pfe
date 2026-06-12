@@ -13,6 +13,7 @@ import { RendezVousService } from '../../../core/services/rendez-vous.service';
 import { CycleSignalRService } from '../../../core/services/cycle-signalr.service';
 import { PmaCyclePhaseService, type JourPhaseCalendrier } from '../../../core/services/pma-cycle-phase.service';
 import { PmaCycleNotificationsService } from '../../../core/services/pma-cycle-notifications.service';
+import { CycleNotifSyncService } from '../../../core/services/cycle-notif-sync.service';
 import { RoleService } from '../../../core/services/role.service';
 import { CyclePma, CycleEtapeHistorique, Patient, RendezVous } from '../../../core/models';
 import {
@@ -47,6 +48,7 @@ export class CycleListComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   readonly phaseService = inject(PmaCyclePhaseService);
   private notifService = inject(PmaCycleNotificationsService);
+  private notifSync = inject(CycleNotifSyncService);
   private roleSvc = inject(RoleService);
   private signalR = inject(CycleSignalRService);
   private destroyRef = inject(DestroyRef);
@@ -54,7 +56,7 @@ export class CycleListComponent implements OnInit, OnDestroy {
   readonly groupedByJour = this.notifService.groupedByJour;
   readonly countNotifsAujourdhui = this.notifService.countAujourdhui;
   readonly isBiologiste = computed(() => this.roleSvc.role() === 'Biologiste');
-  readonly isRealtime = signal(false);
+  readonly isRealtime = this.notifSync.isRealtime;
   showJourNotifs = true;
   notifFilter: 'aujourdhui' | 'semaine' = 'aujourdhui';
 
@@ -91,18 +93,16 @@ export class CycleListComponent implements OnInit, OnDestroy {
   }
 
   private connectRealtime(): void {
-    this.signalR
-      .joinCyclesList()
-      .then(() => this.isRealtime.set(this.signalR.isConnected))
-      .catch(() => this.isRealtime.set(false));
-
     this.signalR.cycleListChanged$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.loadData());
 
     this.signalR.cycleUpdated$
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.loadData());
+      .subscribe(() => {
+        this.loadData();
+        this.notifSync.forceSync();
+      });
   }
 
   loadData(): void {
@@ -147,6 +147,7 @@ export class CycleListComponent implements OnInit, OnDestroy {
           cycleId: c.id,
           patientLabel: this.getPatientName(c.patientId),
           phase: c.phase || '',
+          etapeCourante: c.etapeCourante,
           step: this.phaseService.resolveStepIndex(c, p?.typeActePma, hist),
           dateDebut: c.dateDebut,
           statut: c.statutCycle,
